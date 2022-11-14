@@ -1,0 +1,21 @@
+RH_GET_EMPLOYEES - > A partir de uma unidade organizacional vc acha todo os pernr dentro dela 
+
+      CALL FUNCTION 'RH_GET_EMPLOYEES'
+*       EXPORTING
+*         BEGDA                   = '19000101'
+*         ENDDA                   = '99991231'
+*         TDEPTH                  = 0
+*         SORT                    = 'X'
+        TABLES
+          objects                 =
+          employ_tab              =
+*       EXCEPTIONS
+*         NO_EMPLOYEES            = 1
+*         NO_PARTICIPANT          = 2
+*         NO_MULTI_PART           = 3
+*         NO_ORWAY_IN_T77R3       = 4
+*         OTHERS                  = 5
+                .
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF. 

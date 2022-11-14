@@ -1,0 +1,35 @@
+DATA   t_fcat     TYPE slis_t_fieldcat_alv.
+
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_program_name         = sy-repid
+      i_internal_tabname     = lv_table_name
+      i_structure_name       = lv_table_name "Estrutura Name
+    CHANGING
+      ct_fieldcat            = t_fcat
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+
+
+  DATA lt_dyn_table TYPE REF TO data.
+  DATA lt_dyn_fcat  TYPE lvc_t_fcat.
+  DATA ls_line      TYPE REF TO data.
+  FIELD-SYMBOLS <fs_line>      TYPE any.
+
+  CALL METHOD cl_alv_table_create=>create_dynamic_table
+    EXPORTING
+      i_style_table             = 'X'
+      it_fieldcatalog           = t_dyn_fcat
+    IMPORTING
+      ep_table                  = lt_dyn_table
+    EXCEPTIONS
+      generate_subpool_dir_full = 1
+      OTHERS                    = 2.
+
+  CHECK lt_dyn_table IS NOT INITIAL.
+
+  ASSIGN lt_dyn_table->* TO <gfs_dyn_table>.
+  CREATE DATA ls_line LIKE LINE OF <gfs_dyn_table>. "Dynamic work are for dynamic table
+  ASSIGN ls_line->* TO <fs_line>.

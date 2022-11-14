@@ -1,0 +1,79 @@
+*&---------------------------------------------------------------------*
+*&      Form  F_GERA_LOG_SERVIDOR
+*&---------------------------------------------------------------------*
+FORM f_gera_log_servidor.
+
+  DATA: lv_ln  TYPE string,
+        lv_c   TYPE c LENGTH 1024,
+        lv_qtd TYPE i,
+        lv_tab TYPE sy-tabix,
+        lv_suf TYPE string,
+        p_file TYPE c.
+
+  DATA: lv_file TYPE string.
+
+  FIELD-SYMBOLS: <i> TYPE any.
+  FIELD-SYMBOLS: <f> TYPE any.
+
+  p_file = gv_file.
+
+  "Abre o arquivo em modo de gravação
+  lv_qtd = strlen( p_dout ).
+
+  IF lv_qtd GE 1.
+    lv_qtd = lv_qtd - 1.
+
+    IF p_dout+lv_qtd(1) NE '\'.
+      p_dout = p_dout && '\'.
+    ENDIF.
+  ENDIF.
+
+  lv_suf  = '_IMPORT SAP_' && sy-datum+6(2) && sy-datum+4(2) && sy-datum(4) && sy-uzeit(4) && '.CSV'.
+  lv_file = p_dout && p_file.
+
+  REPLACE ALL OCCURRENCES OF '.CSV' IN lv_file WITH lv_suf.
+
+  OPEN DATASET lv_file FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+  IF sy-subrc NE 0.
+    MESSAGE 'Erro ao gerar o arquivo no diretório.' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+*  LOOP AT gt_arq ASSIGNING <i>.
+  LOOP AT gt_message ASSIGNING <i>.
+    CLEAR: lv_ln.
+    lv_tab = sy-tabix.
+
+    DO.
+
+      CLEAR lv_c.
+      UNASSIGN <f>.
+      ASSIGN COMPONENT sy-index OF STRUCTURE <i> TO <f>.
+
+      IF <f> IS ASSIGNED.
+*        IF lv_tab EQ 1 AND p_hd EQ abap_true. "Adiciona o ID ao título
+*          <f> = 'ID'.
+*        ENDIF.
+
+        WRITE <f> TO lv_c.
+        CONDENSE lv_c.
+      ELSE.
+        EXIT.
+      ENDIF.
+
+      lv_ln = lv_ln && lv_c && p_sep.
+    ENDDO.
+
+    IF NOT lv_ln IS INITIAL.
+      TRANSFER lv_ln TO lv_file.
+    ENDIF.
+  ENDLOOP.
+
+  "Fecha o arquivo
+  TRY.
+      CLOSE DATASET lv_file.
+      MESSAGE 'Arquivo gerado com sucesso.' TYPE 'S'.
+    CATCH cx_root.
+  ENDTRY.
+
+ENDFORM.                

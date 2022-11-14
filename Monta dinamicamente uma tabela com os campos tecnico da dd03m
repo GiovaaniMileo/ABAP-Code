@@ -1,0 +1,35 @@
+  FIELD-SYMBOLS <fs_email>       TYPE zpms240.
+  FIELD-SYMBOLS <fs_email_value> TYPE any.
+  FIELD-SYMBOLS <field_value>    TYPE any.
+  FIELD-SYMBOLS <fs_line>        TYPE any.
+  FIELD-SYMBOLS <fs_dados>       TYPE any.
+
+  CREATE DATA ld_line LIKE LINE OF pt_dados.
+  ASSIGN ld_line->* TO <fs_line>.
+
+* Pega os campos tecnicos de uma tabela
+  SELECT * FROM dd03m INTO TABLE lt_dd03m
+    WHERE tabname EQ p_name ORDER BY keyflag DESCENDING.
+
+  DELETE ADJACENT DUPLICATES FROM lt_dd03m COMPARING fieldname.
+ 
+ * pt_dados é any table vindo de fora
+  LOOP AT pt_dados INTO <fs_line>.
+
+* ls_email-lista é uma estrutura profunda com um tipo de tabela dentro
+    APPEND INITIAL LINE TO ls_email-lista ASSIGNING <fs_email>.
+
+    LOOP AT lt_dd03m INTO ls_dd03m.
+      lv_field = 'CAMPO' && sy-tabix. " Campo da zpms240 CAMP1, CAMP2, ETC
+
+      *Atribui o valor do campo dinamicamente, assim não preciso passa cada campo 01, 02, 03, etc
+      ASSIGN COMPONENT lv_field OF STRUCTURE <fs_email>  TO <fs_email_value>. 
+
+      *Pega o nome do campo tecnico ex mandt pega a estrutura que esse campo tem valor no caso minha fs_line e passa o VALOR que está na fs_line
+      ASSIGN COMPONENT ls_dd03m-fieldname OF STRUCTURE <fs_line> TO <field_value>.
+
+      IF <field_value> IS ASSIGNED.
+        <fs_email_value> = <field_value>.
+      ENDIF.
+    ENDLOOP.
+  ENDLOOP.

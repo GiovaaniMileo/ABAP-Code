@@ -1,0 +1,24 @@
+Retorma o resultado do programa dinamicamente para uma tabela, sem precisar modificar o programa original
+ 
+  FIELD-SYMBOLS <lt_pay_data> TYPE ANY TABLE.
+  DATA lr_pay_data TYPE REF TO data.
+
+  cl_salv_bs_runtime_info=>set(
+  EXPORTING display  = abap_false
+            metadata = abap_false
+            data     = abap_true ).
+
+  SUBMIT zpmr189
+    WITH s_lab IN s_lab
+    EXPORTING LIST TO MEMORY
+    AND RETURN.
+
+  TRY.
+      cl_salv_bs_runtime_info=>get_data_ref(
+      IMPORTING r_data = lr_pay_data ).
+      ASSIGN lr_pay_data->* TO <lt_pay_data>.
+
+    CATCH cx_salv_bs_sc_runtime_info.
+*        MESSAGE `Unable to retrieve ALV data` TYPE 'E'.
+  ENDTRY.
+  cl_salv_bs_runtime_info=>clear_all( ).

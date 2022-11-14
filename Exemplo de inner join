@@ -1,0 +1,94 @@
+Exemplo de inner join onde, e tabela Equi precisava passar pelo filtro de outras duas tabelas a eqbs e jest, desse jeito ele já traz tudo de uma vez
+
+&---------------------------------------------------------------------*
+*&      Form  SELECIONA_EQUI_EQBS_JEST
+*&---------------------------------------------------------------------*
+FORM selecao_equipamento USING ls_ids TYPE ty_entrada_ids
+                               p_qtd  TYPE i.
+
+  TYPES: BEGIN OF ty_equi,
+        equnr        TYPE equnr,
+         matnr       TYPE matnr,
+         serge       TYPE serge,
+         gernr       TYPE gernr,
+         objnr       TYPE j_objnr,
+         nr_cd_br_cx TYPE zpme_nr_cd_br_cx,
+         ztipo       TYPE ztipo_eq,
+         zsta_eq     TYPE zsta_eq,
+         zver_ap     TYPE zver_ap,
+         znot_fi     TYPE znot_fi,
+    END OF ty_equi.
+
+  DATA lt_equi TYPE STANDARD TABLE OF ty_equi.
+  DATA lt_eqbs TYPE STANDARD TABLE OF eqbs.
+  DATA lt_jest TYPE STANDARD TABLE OF jest.
+
+  SELECT equi~equnr
+         equi~matnr
+         equi~serge
+         equi~gernr
+         equi~objnr
+         equi~nr_cd_br_cx
+         equi~ztipo
+         equi~zsta_eq
+         equi~zver_ap
+         equi~znot_fi
+    UP TO p_qtd ROWS FROM equi
+    INNER JOIN eqbs ON equi~equnr EQ eqbs~equnr
+    INNER JOIN jest AS j1 ON equi~objnr EQ j1~objnr
+    INNER JOIN jest AS j2 ON equi~objnr EQ j2~objnr
+    INTO TABLE lt_equi
+    WHERE equi~matnr EQ ls_ids-cod_material
+    AND equi~ztipo   EQ ls_ids-tipo_eqpto
+    AND equi~zsta_eq IN ('NPA', 'NPA')
+    AND eqbs~lbbsa   EQ '01'
+    AND eqbs~b_werk  EQ 'WIN'
+    AND eqbs~b_lager EQ '0001'
+    AND j1~inact     EQ abap_false
+    AND j1~stat      EQ 'I0184'
+    AND j2~inact     EQ abap_false
+    AND j2~stat      EQ 'E0003'.
+
+Forma antiga de fazer ***********************
+
+*  SELECT equnr
+*         matnr
+*         serge
+*         gernr
+*         objnr
+*         nr_cd_br_cx
+*         ztipo
+*         zsta_eq
+*         zver_ap
+*         znot_fi
+*    FROM equi
+*    INTO TABLE lt_equi
+*    WHERE matnr = ls_ids-cod_material
+*     AND  ztipo = ls_ids-tipo_eqpto
+*     AND  zsta_eq = 'NPA' OR zsta_eq = 'NPA'.
+
+*  IF lt_equi IS NOT INITIAL.
+*    SELECT *
+*      FROM eqbs
+*      INTO TABLE lt_eqbs
+*      FOR ALL ENTRIES IN lt_equi
+*      WHERE equnr   = lt_equi-equnr
+*      AND   b_werk  = 'WIN'
+*      AND   lbbsa   = '01'
+*      AND   b_lager = '0001'.
+*
+*    IF lt_eqbs IS NOT INITIAL.
+*      SELECT *
+*        FROM jest
+*        INTO TABLE lt_jest "Equipamento
+*        FOR ALL ENTRIES IN lt_equi
+*        WHERE objnr = lt_equi-objnr
+*        AND   inact = abap_false.
+**        AND   stat  = 'I0184'.
+**        OR stat = 'E0003'. " 'I0184' = "DEPS" (STATUS SISTEMA) -> E0003 = "DESN" (STATUS USUÁRIO)
+*
+*    ENDIF.
+
+*ENDIF.
+
+ENDFORM.                    " SELECIONA_EQUI_EQBS_JEST

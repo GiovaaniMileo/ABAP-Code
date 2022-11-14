@@ -1,0 +1,326 @@
+class ZCL_EMAIL definition
+  public
+  create private .
+
+public section.
+*"* public components of class ZCL_EMAIL
+*"* do not include other source files here!!!
+
+  types:
+    BEGIN OF ty_email,
+               lista TYPE zpmtt169,
+             END OF ty_email .
+
+  type-pools ABAP .
+  class-methods SEND_EMAIL
+    importing
+      !IV_SUBJECT type SO_OBJ_DES
+      !IV_CONTENT type STRING
+      !IV_SENDER type AD_SMTPADR
+      !IT_RECEIVER type BCSY_SMTPA
+      !IV_COMMIT type ABAP_BOOL default ABAP_TRUE
+      !IT_ATTACHMENT type ZHRT_ATTACHMENT optional
+      !IV_NOT_SEND_YET type ABAP_BOOL optional
+      !IV_SUBJECT2 type STRING optional
+    returning
+      value(RETURN) type OS_BOOLEAN .
+  class-methods CREATE_DYNAMIC_TABLE
+    importing
+      !P_NAME type ZHRT_HTMLFORMS-NAME
+      !PT_DADOS type ANY TABLE
+    returning
+      value(RT_EMAIL_TABLE) type TY_EMAIL .
+  class-methods SEND_ALV_IN_EMAILBODY
+    importing
+      !P_NAME type ZHRT_HTMLFORMS-NAME
+      !P_GRUPO type ZGRUPO_EMAIL optional
+      !PT_DADOS type ANY TABLE .
+  class-methods SELECT_RECEIVERS
+    importing
+      !P_GRUPO type ZGRUPO_EMAIL
+    returning
+      value(RT_DEST) type BCSY_SMTPA .
+protected section.
+*"* protected components of class ZCL_EMAIL
+*"* do not include other source files here!!!
+private section.
+*"* private components of class ZCL_EMAIL
+*"* do not include other source files here!!!
+ENDCLASS.
+
+
+
+CLASS ZCL_EMAIL IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_EMAIL=>CREATE_DYNAMIC_TABLE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] P_NAME                         TYPE        ZHRT_HTMLFORMS-NAME
+* | [--->] PT_DADOS                       TYPE        ANY TABLE
+* | [<-()] RT_EMAIL_TABLE                 TYPE        TY_EMAIL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD create_dynamic_table.
+
+  DATA lv_field     TYPE string.
+  DATA lr_data_line TYPE REF TO  data.
+  DATA it_component TYPE abap_component_tab.
+  DATA table_name   TYPE dd03m-tabname.
+  DATA o_ref_type   TYPE REF TO cl_abap_typedescr.
+  DATA o_ref_struct TYPE REF TO cl_abap_structdescr.
+  DATA wa_component TYPE abap_componentdescr.
+
+  FIELD-SYMBOLS <fs_email>       TYPE zpms240.
+  FIELD-SYMBOLS <fs_email_value> TYPE any.
+  FIELD-SYMBOLS <field_value>    TYPE any.
+  FIELD-SYMBOLS <fs_line>        TYPE any.
+  FIELD-SYMBOLS <fs_table> TYPE ANY TABLE.
+  FIELD-SYMBOLS <fs_comp>  TYPE abap_componentdescr.
+
+* pt_dados é una tabela qualquer, pode ser interna ou não, depende de como o cara que chama a função passar 
+
+  CREATE DATA lr_data_line LIKE LINE OF pt_dados.
+
+  APPEND INITIAL LINE TO it_component ASSIGNING <fs_comp>.
+
+  <fs_comp>-type ?= cl_abap_structdescr=>describe_by_data_ref( lr_data_line ).
+
+  table_name = <fs_comp>-type->get_relative_name( ).
+
+  cl_abap_typedescr=>describe_by_name(
+    EXPORTING
+      p_name         = table_name
+    RECEIVING
+      p_descr_ref    = o_ref_type
+    EXCEPTIONS
+     type_not_found = 1 ).
+
+  CHECK o_ref_type IS BOUND.
+  o_ref_struct ?= o_ref_type.
+
+* Dentro da it_component vai ter todos os nomes técnicos dos campos
+  it_component[] = o_ref_struct->get_components( ).
+
+  DELETE it_component WHERE name = 'MANDT'.
+
+
+* Na minha rt_email_table-lista[] vai ter os campos que eu quero que seja alimentados (campo1, campo2, etc) 
+
+  IF it_component[] IS NOT INITIAL.
+    LOOP AT pt_dados ASSIGNING <fs_line>.
+
+      APPEND INITIAL LINE TO rt_email_table-lista ASSIGNING <fs_email>.
+
+      LOOP AT it_component INTO wa_component.
+        lv_field = 'CAMPO' && sy-tabix.
+        ASSIGN COMPONENT lv_field          OF STRUCTURE <fs_email> TO <fs_email_value>.
+        ASSIGN COMPONENT wa_component-name OF STRUCTURE <fs_line>  TO <field_value>.
+
+        IF <field_value> IS ASSIGNED AND <fs_email_value> IS ASSIGNED.
+          <fs_email_value> = <field_value>.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+  ENDIF.
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_EMAIL=>SELECT_RECEIVERS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] P_GRUPO                        TYPE        ZGRUPO_EMAIL
+* | [<-()] RT_DEST                        TYPE        BCSY_SMTPA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD select_receivers.
+
+  DATA lt_zpmt049 TYPE TABLE OF zpmt049.
+  DATA ls_zpmt049 TYPE zpmt049.
+  DATA ls_dest    TYPE ad_smtpadr.
+
+  SELECT email
+    FROM zpmt049
+    INTO CORRESPONDING FIELDS OF TABLE lt_zpmt049
+    WHERE grupo = p_grupo.
+
+  LOOP AT lt_zpmt049 INTO ls_zpmt049.
+    ls_dest = ls_zpmt049-email.
+    APPEND ls_dest TO rt_dest.
+  ENDLOOP.
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_EMAIL=>SEND_ALV_IN_EMAILBODY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] P_NAME                         TYPE        ZHRT_HTMLFORMS-NAME
+* | [--->] P_GRUPO                        TYPE        ZGRUPO_EMAIL(optional)
+* | [--->] PT_DADOS                       TYPE        ANY TABLE
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD send_alv_in_emailbody.
+
+  DATA lt_dest        TYPE bcsy_smtpa.
+  DATA lv_content     TYPE string.
+  DATA lv_upddat      TYPE edidc-upddat.
+  DATA lv_date        TYPE c LENGTH 10.
+  DATA lv_ok          TYPE os_boolean.
+  DATA ls_email       TYPE adr6-smtp_addr.
+  DATA ls_email_table TYPE ty_email.
+
+  DATA lo_send TYPE REF TO zcl_email.
+  CREATE OBJECT lo_send.
+
+  ls_email_table = lo_send->create_dynamic_table( p_name   = p_name
+                                                  pt_dados = pt_dados  ).
+
+  CALL FUNCTION 'ZHRF_TEXTOS'
+    EXPORTING
+      name      = p_name
+      data_st   = ls_email_table
+      no_screen = 'X'
+    IMPORTING
+      text      = lv_content.
+
+  IF lv_content IS INITIAL.
+    MESSAGE 'Erro ao formatar o e-mail.' TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  lt_dest = lo_send->select_receivers( p_grupo = '10').
+
+  lv_upddat = sy-datum.
+
+  WRITE lv_upddat TO lv_date.
+
+  lv_ok = zcl_email=>send_email(
+      iv_subject  = |Lista de IDOCs com erro em | && lv_date
+      iv_content  = lv_content
+      iv_sender   = 't2810gvn@prestadorcbmp.com.br'
+      it_receiver = lt_dest ).
+
+  IF lv_ok EQ abap_true.
+    MESSAGE 'E-mail enviado com sucesso.' TYPE 'S'.
+  ELSE.
+    MESSAGE 'Erro ao enviar o e-mail.' TYPE 'S' DISPLAY LIKE 'E'.
+  ENDIF.
+
+
+ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_EMAIL=>SEND_EMAIL
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_SUBJECT                     TYPE        SO_OBJ_DES
+* | [--->] IV_CONTENT                     TYPE        STRING
+* | [--->] IV_SENDER                      TYPE        AD_SMTPADR
+* | [--->] IT_RECEIVER                    TYPE        BCSY_SMTPA
+* | [--->] IV_COMMIT                      TYPE        ABAP_BOOL (default =ABAP_TRUE)
+* | [--->] IT_ATTACHMENT                  TYPE        ZHRT_ATTACHMENT(optional)
+* | [--->] IV_NOT_SEND_YET                TYPE        ABAP_BOOL(optional)
+* | [--->] IV_SUBJECT2                    TYPE        STRING(optional)
+* | [<-()] RETURN                         TYPE        OS_BOOLEAN
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+METHOD send_email.
+  DATA lo_req TYPE REF TO cl_bcs.
+  DATA lo_exception TYPE REF TO cx_bcs.
+  DATA lo_document TYPE REF TO cl_document_bcs.
+  "Emitente/Destinatários
+  DATA lo_sender TYPE REF TO if_sender_bcs.
+  DATA lo_recipient TYPE REF TO if_recipient_bcs.
+  "Resultado
+  DATA lv_sent TYPE os_boolean.
+  DATA ls_attachment TYPE zhrs_attachment.
+  DATA lt_cont TYPE bcsy_text.
+  DATA lt_cont_tmp LIKE lt_cont.
+  DATA ls_cont LIKE LINE OF lt_cont.
+  FIELD-SYMBOLS <cont> LIKE LINE OF lt_cont.
+
+  TRY.
+      lo_req = cl_bcs=>create_persistent( ).
+
+      "Conteúdo...
+      DATA lv_size TYPE i.
+
+      DESCRIBE FIELD ls_cont-line LENGTH lv_size IN CHARACTER MODE.
+      CALL FUNCTION 'SCMS_STRING_TO_FTEXT'
+        EXPORTING
+          text      = iv_content
+        IMPORTING
+          length    = lv_size
+        TABLES
+          ftext_tab = lt_cont_tmp.
+      IF lt_cont_tmp[] IS NOT INITIAL.
+        APPEND LINES OF lt_cont_tmp TO lt_cont.
+      ENDIF.
+
+      "Cria documento e anexa HTML como corpo
+      lo_document = cl_document_bcs=>create_document( i_type = 'HTM' i_subject = iv_subject i_text = lt_cont ).
+
+      "Adiociona os anexos
+      TRY.
+          IF NOT it_attachment[] IS INITIAL.
+            LOOP AT it_attachment INTO ls_attachment.
+              lo_document->add_attachment(
+                EXPORTING
+                  i_attachment_type     = ls_attachment-type
+                  i_attachment_subject  = ls_attachment-subject
+                  i_attachment_size     = ls_attachment-att_size
+                  i_attachment_language = ls_attachment-language
+                  i_att_content_text    = ls_attachment-content_text
+                  i_att_content_hex     = ls_attachment-content_hex ).
+            ENDLOOP.
+          ENDIF.
+        CATCH cx_root.
+      ENDTRY.
+
+      lo_req->set_document( lo_document ).
+
+      "Título de E-mail 255
+      IF NOT iv_subject2 IS INITIAL.
+        TRY.
+            CALL METHOD lo_req->set_message_subject
+              EXPORTING
+                ip_subject = iv_subject2.
+          CATCH cx_send_req_bcs .
+        ENDTRY.
+      ENDIF.
+
+      "Remetente/Destinatários
+      DATA lv_email TYPE adr6-smtp_addr.
+
+      IF NOT iv_sender IS INITIAL.
+        lv_email = iv_sender.
+        lo_sender = cl_cam_address_bcs=>create_internet_address( lv_email ).
+        lo_req->set_sender( i_sender = lo_sender ).
+      ENDIF.
+
+      FIELD-SYMBOLS <r> LIKE LINE OF it_receiver.
+      LOOP AT it_receiver ASSIGNING <r>.
+        lv_email = <r>.
+        lo_recipient = cl_cam_address_bcs=>create_internet_address( lv_email ).
+        lo_req->add_recipient( i_recipient = lo_recipient i_express = abap_true ).
+      ENDLOOP.
+
+      IF iv_not_send_yet EQ 'X'.
+        lo_req->set_send_immediately( abap_false ).
+      ELSE.
+        lo_req->set_send_immediately( abap_true ).
+      ENDIF.
+
+      "Opções
+      lo_req->set_status_attributes( i_requested_status = 'N' i_status_mail = 'E' ).
+
+      "Envia e-mail
+      return = lo_req->send( i_with_error_screen = abap_true ).
+
+      IF iv_commit = abap_true.
+        COMMIT WORK AND WAIT.
+      ENDIF.
+    CATCH
+      cx_bcs INTO lo_exception.
+  ENDTRY.
+
+ENDMETHOD.
+ENDCLASS.

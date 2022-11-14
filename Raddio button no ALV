@@ -1,0 +1,106 @@
+&---------------------------------------------------------------------*
+*& Report  ZTESTE_G
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zteste_g.
+
+TYPE-POOLS: slis, icon.
+
+DATA: it_fcat TYPE slis_t_fieldcat_alv ,
+wa_fcat LIKE LINE OF it_fcat.
+DATA: BEGIN OF it_alv_flight OCCURS 0,
+carrid TYPE sflight-carrid,
+connid TYPE sflight-connid,
+radio1(4), "Radio button
+radio2(4),
+END OF it_alv_flight.
+SELECT carrid connid FROM sflight
+INTO TABLE it_alv_flight
+UP TO 20 ROWS.
+LOOP AT it_alv_flight.
+  it_alv_flight-radio1 = icon_wd_radio_button_empty. "Empty Radio Buttons
+  it_alv_flight-radio2 = icon_wd_radio_button_empty..
+  MODIFY it_alv_flight.
+ENDLOOP.
+wa_fcat-fieldname = 'RADIO1'.
+wa_fcat-tabname = 'IT_ALV_FLIGHT'.
+wa_fcat-seltext_l = 'RADIO1'.
+wa_fcat-outputlen = 6.
+wa_fcat-icon = 'X'. "Icons
+wa_fcat-hotspot = 'X'. "Interactive Handling
+APPEND wa_fcat TO it_fcat.
+wa_fcat-fieldname = 'RADIO2'.
+wa_fcat-tabname = 'IT_ALV_FLIGHT'.
+wa_fcat-seltext_l = 'RADIO2'.
+wa_fcat-icon = 'X'.
+wa_fcat-outputlen = 6.
+APPEND wa_fcat TO it_fcat.
+CLEAR wa_fcat.
+wa_fcat-fieldname = 'CARRID'.
+wa_fcat-tabname = 'IT_ALV_FLIGHT'.
+wa_fcat-seltext_l = 'Carrid'.
+wa_fcat-outputlen = 7.
+APPEND wa_fcat TO it_fcat.
+wa_fcat-fieldname = 'CONNID'.
+wa_fcat-tabname = 'IT_ALV_FLIGHT'.
+wa_fcat-seltext_l = 'Carrid'.
+wa_fcat-outputlen = 7.
+APPEND wa_fcat TO it_fcat.
+
+CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+  EXPORTING
+    i_callback_program      = sy-repid
+    i_callback_user_command = 'USER_COMMAND'
+    it_fieldcat             = it_fcat
+  TABLES
+    t_outtab                = it_alv_flight
+  EXCEPTIONS
+    program_error           = 1.
+
+*&---------------------------------------------------------------------*
+*&      Form  user_command
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->UCOMM      text
+*      -->SELFIELD   text
+*----------------------------------------------------------------------*
+FORM user_command USING ucomm TYPE sy-ucomm
+selfield TYPE slis_selfield.
+  CASE ucomm.
+    WHEN '&IC1'.
+      READ TABLE it_alv_flight INDEX selfield-tabindex.
+      CASE selfield-fieldname.
+        WHEN 'RADIO1'.
+          IF it_alv_flight-radio1 = icon_radiobutton.
+            it_alv_flight-radio1 = icon_wd_radio_button_empty.
+            it_alv_flight-radio2 = icon_wd_radio_button.
+            MODIFY it_alv_flight INDEX selfield-tabindex
+            TRANSPORTING radio1 radio2.
+          ELSE.
+            it_alv_flight-radio1 = icon_radiobutton.
+            it_alv_flight-radio2 = icon_wd_radio_button_empty.
+            MODIFY it_alv_flight INDEX selfield-tabindex
+            TRANSPORTING radio1 radio2.
+          ENDIF.
+        WHEN 'RADIO2'.
+          IF it_alv_flight-radio2 = icon_radiobutton.
+            it_alv_flight-radio2 = icon_wd_radio_button_empty.
+            it_alv_flight-radio1 = icon_wd_radio_button.
+            MODIFY it_alv_flight INDEX selfield-tabindex
+            TRANSPORTING radio1 radio2.
+          ELSE.
+            it_alv_flight-radio2 = icon_radiobutton.
+            it_alv_flight-radio1 = icon_wd_radio_button_empty.
+            MODIFY it_alv_flight INDEX selfield-tabindex
+            TRANSPORTING radio1 radio2.
+          ENDIF.
+      ENDCASE.
+  ENDCASE.
+  selfield-refresh = 'X'.
+ENDFORM. "USER_COMMAND
+
