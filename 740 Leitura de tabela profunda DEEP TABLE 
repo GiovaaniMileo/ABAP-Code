@@ -1,0 +1,70 @@
+ REPORT ztesteg.
+
+* itab deep
+ TYPES:
+   BEGIN OF ty_alv_data,
+     kunnr   TYPE kunnr,
+     name1   TYPE name1,
+     ort01   TYPE ort01,
+     land1   TYPE land1,
+     t_color TYPE lvc_t_scol,
+   END   OF ty_alv_data.
+ TYPES: tt_alv_data TYPE STANDARD TABLE OF ty_alv_data
+                                         WITH DEFAULT KEY.
+
+ DATA(itab_alv) =
+   VALUE tt_alv_data(
+                     "First Row
+                     ( kunnr = '123' name1 = 'ABCD'
+                         ort01 = 'LV' land1 = 'NV'
+                         " color table
+                         t_color = VALUE #(
+                                           " Color table - First Row
+                                            ( fname = 'KUNNR'
+                                              color-col = col_negative
+                                              color-int = 0
+                                              color-inv = 0
+                                             )
+                                           " Color Table - 2nd Row
+                                            ( fname = 'ORT01'
+                                              color-col = col_total
+                                              color-int = 1
+                                              color-inv = 1
+                                             )
+                                           )
+                     )
+                     "Second row
+                    ( kunnr = '456' name1 = 'XYZ'
+                         ort01 = 'LA' land1 = 'CA'
+                     )
+                  ).
+
+
+* Old Way
+ FIELD-SYMBOLS: <fs_data> LIKE LINE OF itab_alv,
+                <fs_col>  LIKE LINE OF <fs_data>-t_color.
+ READ TABLE itab_alv ASSIGNING <fs_data> WITH KEY kunnr = '123'.
+ IF sy-subrc EQ 0.
+   READ TABLE <fs_data>-t_color ASSIGNING <fs_col> WITH KEY fname = 'ORT01'.
+   IF sy-subrc EQ 0.
+     <fs_col>-color-col = col_group.
+     <fs_col>-color-int = 0.
+     <fs_col>-color-inv = 1.
+   ENDIF.
+ ENDIF.
+
+* Table Expressions - New Way
+ TRY .
+*    Atribue ao color-col = 0 que é a o valor da variável que veio do col_background
+     itab_alv[ kunnr = '123' ]-t_color[ fname = 'ORT01' ]-color-col = col_background.
+
+
+*.  Dentro dessa DEEP foi passar do para o field symbol o valor da coluna color que está dentro da tabela t_color (ou seja nessa caso a coluna 2 )
+     ASSIGN itab_alv[ kunnr = '123' ]-t_color[ fname = 'KUNNR' ]-color
+       TO FIELD-SYMBOL(<col>).
+     <col>-col = col_positive.
+     <col>-int = 1.
+     <col>-inv = 1.
+   CATCH cx_sy_itab_line_not_found.
+
+ ENDTRY.

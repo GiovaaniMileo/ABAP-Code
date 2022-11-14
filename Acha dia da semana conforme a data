@@ -1,0 +1,5 @@
+    CALL FUNCTION 'DAY_IN_WEEK'
+      EXPORTING
+        datum = sy-datum
+      IMPORTING
+        wotnr = g_day.

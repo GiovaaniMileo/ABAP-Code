@@ -1,0 +1,41 @@
+UNPACK, PACK e CONDENSE
+*  Fala galera vou postar hoje um negocio que ajuda muito na hora de
+* trabalhar com alimentação de variáveis, paramentros de funções e na
+* hora de  mostra os dados fica um pouco mais bonito também, são os
+* famosos 'UNPACK', 'PACK' e 'CONDENSE', está tudo comentado no código.
+
+REPORT z_unpack_pack_condense.
+
+* Declarações
+DATA :
+  texto10(10),
+  texto5(5).
+
+BREAK-POINT.
+
+texto10 = '1234'.
+texto5  = '1234'.
+
+* Adiciona 0's a esquerda até completa o variavel por inteiro.
+UNPACK texto10 TO texto10.
+UNPACK texto5 TO texto5.
+
+write : / 'UNPACK ', TEXTO10,/
+          'UNPACK ', TEXTO5,/.
+BREAK-POINT.
+
+* Tira os 0's a esquerda mas mantêm os dados orientados a direita.
+PACK texto10 TO texto10.
+PACK texto5 TO texto5.
+
+write : / 'PACK    ', TEXTO10,/
+          'PACK    ', TEXTO5,/.
+BREAK-POINT.
+
+* Tira os espaços vazios da variável.
+CONDENSE texto10.
+CONDENSE texto5.
+
+write : / 'CONDENSE ', TEXTO10,/
+          'CONDENSE ', TEXTO5,/.
+BREAK-POINT.

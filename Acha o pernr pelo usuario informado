@@ -1,0 +1,35 @@
+* Acha o pernr pelo usuario informado
+CALL FUNCTION 'RP_GET_PERNR_FROM_USERID'
+EXPORTING
+BEGDA = sy-datum
+ENDDA = sy-datum
+USRID = G_SYUNAME
+USRTY = '0001'
+IMPORTING
+USR_PERNR = G_PERNR
+EXCEPTIONS
+RETCD = 1
+OTHERS = 2   
+
+* verifica se tem autorização para acessar as informações
+   CALL FUNCTION 'HR_CHECK_AUTHORITY_INFTY'
+               EXPORTING
+                    tclas            = ps_line-tclas
+                    pernr            = ps_line-pernr
+                    infty            = ps_line-infty
+                    subty            = ps_line-subty
+                    begda            = ps_line-begda
+                    endda            = ps_line-endda
+                    level            = 'R'
+*              TABLES
+*             I0001            =
+               EXCEPTIONS
+                    no_authorization = 1
+                    internal_error   = 2
+                    OTHERS           = 3.
+
+          IF sy-subrc = 0.
+            ps_line-is_authorized = 'X'.
+          ELSE.                        " SY-SUBRC = 0.
+            ps_line-is_authorized = '-'.
+          ENDIF.                       " (ELSE) SY-SUBRC = 0.

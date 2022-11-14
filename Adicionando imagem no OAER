@@ -1,0 +1,20 @@
+Adicionando imagem no OAER
+
+Nome da Classe = PICTURES 
+Tipo de Classe = OT 
+Chave de objeto = Sua imagem 
+
+
+Bunitão essa transação né? Não se esqueça que essa transação é usada
+" pra um monte de coisa que nem sei, mas tambem é usada pra importação de
+" imagens dentro do SAP de uma forma mais organizada.
+"  Primeiramente vamos colocar no campo 'Nome da Classe' o dado 'PICTURES'
+" e no campo 'Tipo de Classe' o dado 'OT' antes de informar a 'Chave do
+" objeto', execute e você verá todas as imagens desta classe, falei isso
+" porque as vezes a imagem que você quer adicionar é um logo e provavelmente
+" isso já deve ter sido adicionado por alguem antes, caso contrário vamos
+" voltar e informar a 'Chave do objeto', lembrando que a chave do objeto
+" o nome do objeto dentro do SAP, é com esse nome que deveremos trabalhar na
+" função 'REUSE_ALV_COMMENTARY_WRITE', Execute.
+"  Não lembra dessa função acesse esse link :
+" http://abapjuniores.blogspot.com/2011/11/alv-top-of-page.html

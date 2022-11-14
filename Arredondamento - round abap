@@ -1,0 +1,20 @@
+Arredondamento - round abap
+O SAP disponibiliza uma função própria para fazer o arredondamento de valores no abap. Está função é a ROUND. O utlização dela é bem simples conforme podemos ver no exemplo abaixo:
+
+
+
+DATA: x TYPE p DECIMALS 5,                 
+      y TYPE p DECIMALS 2,                 
+      v TYPE string VALUE '-152850.11234'.
+
+MOVE v TO x. "Move o valor original para a variável que vai ser arredondada
+
+CALL FUNCTION 'ROUND'
+  EXPORTING
+    decimals = 2 "Casas decimais após o arredondamento
+    input    = x "Valor original
+  IMPORTING
+    output   = y."Resultado
+
+WRITE:/ x. "Imprime o valor original na tela
+WRITE:/ y. "Imprime o resultado do arredondamento na tela

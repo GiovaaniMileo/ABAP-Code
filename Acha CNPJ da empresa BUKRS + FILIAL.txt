@@ -1,0 +1,11 @@
+  call function 'J_1BREAD_BRANCH_DATA'
+    exporting
+      branch            = iv_filia
+      bukrs             = iv_bukrs
+    importing
+      cgc_number        = lv_cgc
+    exceptions
+      branch_not_found  = 1
+      address_not_found = 2
+      company_not_found = 3
+      others            = 4.

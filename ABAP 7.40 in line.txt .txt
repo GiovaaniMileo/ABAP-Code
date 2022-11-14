@@ -1,0 +1,28 @@
+Read table vida loka !! -- com with key - in line 
+
+      TRY .
+
+          <s_result>-betrg = results-inter-rt[ lgart = lv_base ]-betrg.
+
+        CATCH cx_sy_itab_line_not_found.
+
+        result_rel_payr-relev = abap_false.
+
+        MODIFY result_rel_payr TRANSPORTING relev
+                         WHERE seqnr = results-evp-seqnr.
+
+      ENDTRY.
+
+
+*.  Forma mais simples
+          DATA(ls_get_position) = lt_get_position[ rsign = 'B'                                                   relat = '008' ].
+
+
+-------------------------------
+
+Concatenate
+  DATA(lv_dt_tela_begda) = p_mes && p_ano && |01|.
+
+
+------
+* Passa apenas um campo para dentro da estrutura saida  IF sy-subrc = 0.    st_saida-nome = tl_p0002[ pernr = s_pernr-low ]-cname .  ENDIF.

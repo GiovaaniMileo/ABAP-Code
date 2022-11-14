@@ -1,0 +1,109 @@
+method DETERMINE_FORM_NAME.
+  data:   ls_pmehf       type pmehf,
+          lt_p0001       TYPE TABLE OF p0001,
+          lt_p0007       TYPE TABLE OF p0007,
+          ls_wa_p0001    LIKE LINE OF lt_p0001,
+          ls_wa_p0007    LIKE LINE OF lt_p0007.
+
+  data: I_T001P type table of T001P,         "SIR 1695748
+        T001P_WA like line of I_T001P.       "SIR 1695748
+
+  clear ev_formname.
+
+* read infotype 0001 entry which is valid at iv_endda
+  CALL FUNCTION 'HR_READ_INFOTYPE'
+    EXPORTING
+      pernr           = MV_PERNR
+      infty           = '0001'
+    TABLES
+      infty_tab       = lt_p0001
+    EXCEPTIONS
+      infty_not_found = 1
+      OTHERS          = 2.
+  IF sy-subrc <> 0.
+* authority check included
+* 106: No authority for infotype &1
+    MESSAGE e106 with '0001' INTO gv_mess_dummy.
+    append cl_hress_fpm_msg_services=>return_msg_fpm_sy( ) to ct_messages.
+    return.
+  ENDIF.
+
+   LOOP AT lt_p0001 INTO ls_wa_p0001      "#EC NEEDED
+    WHERE begda LE iv_endda
+      AND endda GE iv_begda.
+  ENDLOOP.
+
+  CALL FUNCTION 'HR_READ_INFOTYPE'
+    EXPORTING
+      pernr           = MV_PERNR
+      infty           = '0007'
+      begda           = iv_endda
+      endda           = iv_endda
+    TABLES
+      infty_tab       = lt_p0007
+    EXCEPTIONS
+      infty_not_found = 1
+      others          = 2.
+  if sy-subrc ne 0.
+* authority check included
+* fill et_messages
+* 106: No authority for infotype &1
+    MESSAGE e106 with '0007' INTO gv_mess_dummy.
+    APPEND cl_hress_fpm_msg_services=>return_msg_fpm_sy( ) TO ct_messages.
+    return.
+  endif.
+
+* Begin of changes: HEGDEPR 2208138
+*  LOOP AT lt_p0001 INTO ls_wa_p0001.   "#EC NEEDED
+**  take entry with highest date - current valid data of employee - not of interval the form is
+**  created for
+*  ENDLOOP.
+* End of changes: HEGDEPR 2208138
+
+* determine id of hrforms form
+  MOVE-CORRESPONDING ls_wa_p0001 TO ls_pmehf. "#EC ENHOK
+
+  loop at lt_p0007 into ls_wa_p0007. "#EC NEEDED
+  endloop.
+* so take last record of IT0007 for determination of form name
+  MOVE-CORRESPONDING ls_wa_p0007 TO ls_pmehf. "#EC ENHOK
+
+*  1. determine formname
+
+*  ls_pmehf-rclas = 'TESD'.                                        "SIR 1695748
+  ls_pmehf-rclas = 'TESP'.                                         "SIR 1695748
+  ls_pmehf-molga = '99'.
+  ls_pmehf-uname = sy-uname.
+
+* Begin of SIR 1695748
+  SELECT SINGLE * FROM T001P INTO T001P_WA WHERE WERKS = LS_PMEHF-WERKS AND
+                                   BTRTL = LS_PMEHF-BTRTL.
+  IF sy-subrc eq 0.
+    ls_pmehf-molga = T001P_WA-MOLGA.
+  endif.
+* End of SIR 1695748
+
+  CALL FUNCTION 'HR_FEATURE_BACKFIELD'
+    EXPORTING
+      feature                     = 'HRFOR'
+      struc_content               = ls_pmehf
+    IMPORTING
+      back                        = gv_formname
+    EXCEPTIONS
+      dummy                       = 1
+      error_operation             = 2
+      no_backvalue                = 3
+      feature_not_generated       = 4
+      invalid_sign_in_funid       = 5
+      field_in_report_tab_in_pe03 = 6
+      others                      = 7.
+
+  if  sy-subrc ne 0.
+*107:Error occured when reading feature &1
+    MESSAGE e107 with 'HRFOR' INTO gv_mess_dummy.
+    APPEND cl_hress_fpm_msg_services=>return_msg_fpm_sy( ) TO ct_messages.
+    return.
+  endif.
+
+endmethod.
+

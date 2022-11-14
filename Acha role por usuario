@@ -1,0 +1,24 @@
+FORM f_verifica_roles USING p_uname.
+
+  DATA: i_agr_users TYPE TABLE OF agr_users.
+
+* Função que acha as roles do usuario
+  CALL FUNCTION 'CKEXUTIL_USER_TO_ROLE'
+    EXPORTING
+      i_uname      = p_uname
+    TABLES
+      et_agr_users = i_agr_users.
+
+  IF i_agr_users IS NOT INITIAL.
+
+*   Verifica na tabela de permissão qual tabela ele vai ter acesso pela role
+    LOOP AT i_agr_users INTO DATA(st_agr_users).
+      SELECT agr_name
+        FROM /andina/t_confer
+        INTO @DATA(st_agr_name)
+        WHERE zdbtabname = i_agr_users.
+    ENDLOOP.
+
+  ENDIF.
+
+ENDFORM.
