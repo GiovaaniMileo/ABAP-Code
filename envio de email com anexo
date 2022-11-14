@@ -1,0 +1,230 @@
+ * Envia o email com qualquer tipo de tabela
+
+ DATA: lo_send  TYPE REF TO zcl_email,
+        lr_xroot TYPE REF TO cx_root.
+
+  DATA lv_subject       TYPE bcs_subject.
+  DATA lv_sender        TYPE ad_smtpadr.
+
+  DATA: lv_data_i  TYPE char10,
+        lv_data_f  TYPE char10.
+
+  DATA lv_mail_body_top TYPE string.
+
+  DATA: lv_ok LIKE abap_true.
+
+  DATA: lr_table TYPE REF TO cl_salv_table,
+        lv_title TYPE bcs_filename.
+
+  READ TABLE s_date INDEX 1.
+
+  lv_data_i = sy-datum+6(2) && '/' && sy-datum+4(2) && '/'&& sy-datum+2(2).
+  lv_subject = |Log Ampliação de Mat. - Dep. Inst. Direto { lv_data_i }|.
+*  lv_sender = 'wf-batch@cielo.com.br'.
+
+  PERFORM f_select_tvarv CHANGING lv_sender.
+
+  CLEAR lv_data_i.
+  lv_data_i = s_date-low+6(2) && '/' && s_date-low+4(2) && '/'&& s_date-low(4).
+
+  IF NOT s_date-high IS INITIAL.
+    lv_data_f = s_date-high+6(2) && '/' && s_date-high+4(2) && '/'&& s_date-high(4).
+  ELSE.
+    lv_data_f = lv_data_i.
+  ENDIF.
+
+  IF s_date-option EQ 'GE'.
+    lv_data_f = sy-datum+6(2) && '/' && sy-datum+4(2) && '/'&& sy-datum(4).
+  ENDIF.
+
+  lv_mail_body_top = |Log de ampliação de materiais nos depósitos de gestores admitidos entre { lv_data_i } e { lv_data_f }.|.
+
+  TRY .
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = lr_table
+        CHANGING
+          t_table      = t_log ).
+
+      lr_table->get_columns( )->get_column( 'STAT' )->set_visible( abap_false ).
+      lr_table->get_columns( )->get_column( 'MSGID' )->set_visible( abap_false ).
+      lr_table->get_columns( )->get_column( 'MSGNR' )->set_visible( abap_false ).
+    CATCH cx_root INTO lr_xroot.
+      MESSAGE 'Erro ao criar SAlV_TABLE para envio de e-mail.' TYPE 'E' DISPLAY LIKE 'S'.
+      RETURN.
+  ENDTRY.
+
+  WRITE sy-datum TO sy-msgv1.
+  REPLACE ALL OCCURRENCES OF '/' IN sy-msgv1 WITH '-'.
+  lv_title = |Log_Amplia_Materiais_{ sy-msgv1 }|.
+
+  lv_ok = zcl_email=>send_alv_in_email_attach( p_subject               = lv_subject
+                                               p_sender                = lv_sender
+                                               p_attach_title          = lv_title
+                                               po_salv_table           = lr_table
+                                               p_mail_body_text_top    = lv_mail_body_top
+                                               p_mail_body_text_bottom = 'Qualquer dúvida, contatar key-user SAP.' ).
+
+  IF lv_ok IS INITIAL.
+    MESSAGE 'Erro ao enviar e-mail.' TYPE 'E' DISPLAY LIKE 'S'.
+  ELSE.
+    MESSAGE 'E-mail enviado com sucesso' TYPE 'S'.
+  ENDIF.
+_________________________________________________________________________________________________________________
+
+*&---------------------------------------------------------------------*
+*&      Form  F_ENVIA_EMAIL2
+*&---------------------------------------------------------------------*
+FORM f_envia_email_anexo.
+  DATA lo_send     TYPE REF TO zcl_email.
+  DATA lv_ok       LIKE abap_true.
+  DATA: lv_subject TYPE bcs_subject,"so_obj_des,
+        lv_sender  TYPE ad_smtpadr,
+        lv_data_i  TYPE char10,
+        lv_data_f  TYPE char10,
+        lv_datum   TYPE char10,
+        lv_top     TYPE string,
+        lv_bottom  TYPE string,
+        lv_title   TYPE bcs_filename.
+
+      gt_alv       TYPE REF TO cl_salv_table,
+
+  lv_datum = sy-datum+6(2) && '/' && sy-datum+4(2) && '/'&& sy-datum+2(2).
+  lv_subject = |Log Criação/Inativação Dep. Inst. Direto { lv_datum }|.
+
+  lv_data_i = s_data-low+6(2) && '/' && s_data-low+4(2) && '/'&& s_data-low(4).
+
+  IF NOT s_data-high IS INITIAL.
+    lv_data_f = s_data-high+6(2) && '/' && s_data-high+4(2) && '/'&& s_data-high(4).
+  ELSE.
+    lv_data_f = lv_data_i.
+  ENDIF.
+
+  IF s_data-option EQ 'GE'.
+    lv_data_f = sy-datum+6(2) && '/' && sy-datum+4(2) && '/'&& sy-datum(4).
+  ENDIF.
+
+  lv_top     = |Log de criação e inativação de gestores admitidos ou demitidos entre { lv_data_i } e { lv_data_f }.|.
+  lv_bottom  = 'Qualquer dúvida, contatar key-user SAP.'.
+
+  lv_sender  = 'wf-batch@cielo.com.br'.
+
+  PERFORM f_select_tvarv CHANGING lv_sender.
+
+  WRITE sy-datum TO sy-msgv1.
+  REPLACE ALL OCCURRENCES OF '/' IN sy-msgv1 WITH '-'.
+*  lv_title = |Log_Amplia_Materiais_{ sy-msgv1 }|.
+  lv_title = |Log_{ sy-msgv1 }|.
+
+  lv_ok = zcl_email=>send_alv_in_email_attach( p_subject      = lv_subject
+                                               p_sender       = lv_sender
+                                               p_attach_title = lv_title
+                                               po_salv_table  = gt_alv
+*                                               pt_dados      = gt_log
+                                               p_mail_body_text_top    = lv_top
+                                               p_mail_body_text_bottom = lv_bottom ).
+
+  IF lv_ok IS INITIAL.
+    MESSAGE 'Erro ao enviar e-mail.' TYPE 'E' DISPLAY LIKE 'S'.
+  ELSE.
+    MESSAGE 'E-mail enviado com sucesso' TYPE 'S'.
+  ENDIF.
+
+ENDFORM.                    " F_ENVIA_EMAIL2      
+
+
+---------- Chamada da Classe que efetivamente monta o mail de forma dinamica(campos gerados fieldcat) conforme o parametro passou para o gt_alv
+
+
+METHOD send_alv_in_email_attach.
+  TYPES: BEGIN OF ty_email_body,
+      saudacoes            TYPE string,
+      texto_principal      TYPE string,
+      conteudo_tabela      TYPE string,
+      consideracoes_finais TYPE string,
+     END OF ty_email_body.
+
+  DATA: ls_email_body TYPE ty_email_body,
+        lv_content    TYPE string,
+        lt_dest       TYPE bcsy_smtpa,
+        ls_dest       LIKE LINE OF lt_dest,
+        lv_address    TYPE bcs_address,
+        v_xstring     TYPE xstring.
+
+  DATA: lr_bcs_msg TYPE REF TO cl_bcs_message,
+        lr_xroot   TYPE REF TO cx_root.
+
+  ls_email_body-texto_principal      = p_mail_body_text_top.
+  ls_email_body-consideracoes_finais = p_mail_body_text_bottom.
+
+  CALL FUNCTION 'ZHRF_TEXTOS'
+    EXPORTING
+      name      = p_name
+      data_st   = ls_email_body
+      no_screen = 'X'
+    IMPORTING
+      text      = lv_content.
+
+  CALL FUNCTION 'SCMS_STRING_TO_XSTRING'
+    EXPORTING
+      text   = lv_content
+    IMPORTING
+      buffer = v_xstring
+    EXCEPTIONS
+      failed = 1
+      OTHERS = 2.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  TRY .
+      CREATE OBJECT lr_bcs_msg.
+      lr_bcs_msg->set_subject( p_subject ).
+
+      lr_bcs_msg->set_main_doc(
+        EXPORTING
+          iv_contents_bin = v_xstring
+          iv_doctype      = 'HTM'
+          iv_codepage     = 4110 ). "UTF-8"
+
+      lv_address = p_sender.
+      lr_bcs_msg->set_sender( lv_address ).
+
+      lt_dest = select_receivers( p_grupo = p_grupo ).
+
+      LOOP AT lt_dest INTO ls_dest.
+        lv_address = ls_dest.
+        lr_bcs_msg->add_recipient( lv_address ).
+      ENDLOOP.
+
+      v_xstring = po_salv_table->to_xml( if_salv_bs_xml=>c_type_xlsx ).
+
+      lr_bcs_msg->add_attachment(
+        EXPORTING
+          iv_doctype      = 'EXT'
+          iv_filename     = |{ p_attach_title }.xlsx|
+          iv_contents_bin = v_xstring ).
+
+      lr_bcs_msg->set_send_immediately( abap_true ).
+
+      lr_bcs_msg->send( ).
+      p_status = abap_true.
+
+    CATCH cx_root INTO lr_xroot.
+      MESSAGE 'Erro ao enviar e-mail.' TYPE 'E' DISPLAY LIKE 'S'.
+      CLEAR p_status.
+      RETURN.
+  ENDTRY.
+
+ENDMETHOD.
+
+_--------- Parametros de entrada do method
+P_NAME                  Importing   Type  ZHRT_HTMLFORMS-NAME 'ZALV_IN_EMAIL_BODY'  ABAP: nome da variável de variante
+P_SUBJECT               Importing Type  BCS_SUBJECT                                                                                                                                       Descrição breve do conteúdo
+P_SENDER                Importing Type  AD_SMTPADR                                                                                                                                        Endereço de e-mail
+P_GRUPO                 Importing   Type  ZGRUPO_EMAIL  '10'  Grupo de email
+P_MAIL_BODY_TEXT_TOP    Importing Type  STRING                                                                                                                                                                                                    
+P_MAIL_BODY_TEXT_BOTTOM Importing Type  STRING                                                                                                                                                                                                    
+PO_SALV_TABLE           Importing Type Ref To CL_SALV_TABLE                                                                                                                                       Basis Class for Simple Tables
+P_ATTACH_TITLE          Importing Type  BCS_FILENAME                                                                                                                                        File Name of an Attachment
+P_STATUS                Returning Type  ABAP_BOOL                                                                                                                                                                                                   
