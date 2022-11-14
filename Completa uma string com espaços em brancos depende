@@ -1,0 +1,5 @@
+Completa uma string com espaços em brancos dependen do tamanho
+
+data(lv_qtd) = strlen( Variavel).
+lv_qtd = 255 - lv_qtd - 1 
+shift variavel by lv_qtd places right.

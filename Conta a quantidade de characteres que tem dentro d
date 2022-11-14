@@ -1,0 +1,3 @@
+Conta a quantidade de characteres que tem dentro de um string
+
+Data(qtd) = strlen( suaVarial ).
