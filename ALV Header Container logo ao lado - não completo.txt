@@ -1,0 +1,312 @@
+REPORT zteste_gio2.
+
+DATA : it_spfli TYPE TABLE OF spfli,
+       wa_spfli TYPE spfli,
+       o_cust   TYPE REF TO cl_gui_custom_container,
+       o_spli   TYPE REF TO cl_gui_splitter_container,
+       o_ref1   TYPE REF TO cl_gui_container,
+       o_ref2   TYPE REF TO cl_gui_container,
+       o_alv    TYPE REF TO cl_gui_alv_grid,
+       o_docu   TYPE REF TO cl_dd_document,
+       ok_code  TYPE sy-ucomm.
+
+*———————————————————————-*
+CLASS handle_event DEFINITION.
+  PUBLIC SECTION.
+
+    CLASS-METHODS: page_head FOR EVENT
+
+      top_of_page OF cl_gui_alv_grid
+
+      IMPORTING e_dyndoc_id table_index.
+
+
+ENDCLASS.                    "HANDLE_EVENT DEFINITION
+
+*———————————————————————-*
+CLASS handle_event IMPLEMENTATION.
+
+  METHOD page_head.
+    DATA: s_tab    TYPE sdydo_text_table,
+          i_text   TYPE TABLE OF tab_text,
+          w_text   TYPE tab_text,
+          c_area   TYPE REF TO cl_dd_area,
+          lt_texts TYPE sdydo_text_table.
+
+    DATA:    table_element TYPE REF TO cl_dd_table_element,
+             column_1      TYPE REF TO cl_dd_area.
+
+    DATA : text TYPE sdydo_text_element.
+
+*    REFRESH: lt_header.
+
+
+    o_docu->add_form(
+      IMPORTING
+        formarea         = DATA(forma)    " Form Area
+*    main_url         =     " Internal Use, Do Not Use
+*    alv_offline_info =     " Internal Use, Do Not Use
+    ).
+
+*    APPEND text-001 TO lt_texts.
+*    APPEND text-002 TO lt_texts.
+*    APPEND text-003 TO lt_texts.
+
+*forma->add_
+
+    lt_texts = VALUE #(
+    ( text-001 )
+    ( text-002 )
+    ( text-003 )
+     ).
+
+    forma->add_text(
+*  EXPORTING
+*    text          =     " Single Text, Up To 255 Characters Long
+        text_table    =  lt_texts   " Table With Single Texts
+*    fix_lines     =     " If 'X': TEXT_TABLE Display in Lines, Otherwise Continuous
+*    sap_style     =     " Recommended Styles
+*    sap_color     =     " Not Release 99
+*    sap_fontsize  =     " Recommended Font Sizes
+*    sap_fontstyle =     " Not Release 99
+*    sap_emphasis  =     " Text Highlighting
+*    style_class   =     " Not Release 99
+*    a11y_tooltip  =     " A11Y: Additional Explanation
+*  CHANGING
+*    document      =     " x
+    ).
+
+
+    forma->add_table(
+     EXPORTING
+       no_of_columns = 3
+       border        = '0'
+       width         = '100%'
+     IMPORTING
+       table         = DATA(o_table_element) ).
+
+
+*o_table_element->set_column_style(
+*  EXPORTING
+*    col_no        =     " Number of Table Column
+**    sap_style     =     " Recommended Styles
+**    sap_color     =     " Recommended Colors
+**    sap_fontsize  =     " Recommended Font Sizes
+**    sap_fontstyle =     " Recommended Font Types
+**    sap_emphasis  =     " Text Highlighting
+**    sap_align     =     " Alignment: "LEFT", "CENTER", "RIGHT"
+**    sap_valign    =     " Alignment: "TOP", "CENTER", "BOTTOM"
+**    sap_symbol    =     " Output as SAP List Symbol
+*).
+
+    o_table_element->add_column( IMPORTING column = DATA(colum1) ).
+    o_table_element->add_column( IMPORTING column = DATA(colum2) ).
+    o_table_element->add_column( IMPORTING column = DATA(colum3) ).
+
+
+colum1->add_picture(
+*      EXPORTING
+        picture_id = 'ENJOYSAP_LOGO' " Object uploaded by OAER Transaction
+        width      = '10%'
+        tabindex   = '1' ).
+
+    colum2->add_text( text_table = lt_texts fix_lines = abap_true ).
+    colum3->add_text( text = text-003 ).
+
+    o_docu->merge_document( ).
+    o_docu->display_document( parent = o_ref1 ).
+
+*    CALL METHOD column_1->add_picture
+*      EXPORTING
+*        picture_id = 'ENJOYSAP_LOGO' " Object uploaded by OAER Transaction
+*        width      = '10%'
+*        tabindex   = '1'.
+
+*column_1->add_text( text = lt_texts ).
+*  EXPORTING
+*    text          =     " Single Text, Up To 255 Characters Long
+*    text_table    =     " Table With Single Texts
+*    fix_lines     =     " If 'X': TEXT_TABLE Display in Lines, Otherwise Continuous
+*    sap_style     =     " Recommended Styles
+*    sap_color     =     " Not Release 99
+*    sap_fontsize  =     " Recommended Font Sizes
+*    sap_fontstyle =     " Not Release 99
+*    sap_emphasis  =     " Text Highlighting
+*    style_class   =     " Not Release 99
+*    a11y_tooltip  =     " A11Y: Additional Explanation
+*  CHANGING
+*    document      =     " x
+*).
+
+*table_element->
+*    CALL METHOD table_element->set_column_style
+*      EXPORTING
+*        col_no    = 1
+*        sap_align = 'LEFT'.
+*        sap_style = cl_dd_document=>heading.
+
+
+*    CALL METHOD o_docu->add_text_as_heading
+*      EXPORTING
+*        text          = 'Teste 666666'
+**       fix_lines     = 'X'
+*        heading_level = 6.
+
+*    APPEND text-001 TO lt_texts.
+*    APPEND text-002 TO lt_texts.
+*    APPEND text-003 TO lt_texts.
+
+
+
+
+*    CALL METHOD o_docu->add_text
+*      EXPORTING
+*        text       = space
+*        text_table = lt_texts
+*        fix_lines  = 'X'.
+*        sap_style  = cl_dd_document=>heading.
+
+*    CALL METHOD o_docu->new_line.
+*    text       = 'Teste2'.
+*    CALL METHOD o_docu->add_text
+*      EXPORTING
+*        text         = 'Teste 3'
+*        fix_lines    = 'X'
+**       sap_color    = cl_dd_document=>list_positive
+*        sap_fontsize = cl_dd_document=>large.
+**** Logo
+
+*    CALL METHOD o_docu->add_gap
+*      EXPORTING
+*        width = 100.
+
+*    CALL METHOD o_docu->add_picture
+*      EXPORTING
+*        picture_id = 'ENJOYSAP_LOGO' " Object uploaded by OAER Transaction
+*        width      = '10%'
+*        tabindex   = '99'.
+
+*    CALL METHOD o_docu->
+*      EXPORTING
+**       start = 'X'.
+*        end = 'X'.
+
+*   Exibe na tela
+*    CALL METHOD o_docu->display_document
+*      EXPORTING
+*        parent = o_ref1.
+
+*———————-or try this ——————————–*
+
+*DATA : text TYPE sdydo_text_element .
+*    DATA : date TYPE char10.
+*    WRITE sy-datum TO date USING EDIT MASK '__/__/____'.  CONCATENATE : 'FLIGHT DETAILS ON ' date INTO text SEPARATED BY space.
+*    CALL METHOD o_docu->add_text
+*      EXPORTING
+*        text         = text
+*        sap_style    = cl_dd_document=>heading
+*        sap_color    = cl_dd_document=>list_heading_int
+*        sap_fontsize = cl_dd_document=>large.
+*
+*    CALL METHOD o_docu->new_line.
+*    CLEAR text.
+*    CONCATENATE : 'BY USER :' sy-uname INTO text SEPARATED BY space.
+*    CALL METHOD o_docu->add_text
+*      EXPORTING
+*        text         = text
+*        sap_style    = cl_dd_document=>heading
+*        sap_color    = cl_dd_document=>list_heading_int
+*        sap_fontsize = cl_dd_document=>large.
+
+*    CALL METHOD o_docu->set_document_background
+*      EXPORTING
+*        picture_id = 'ENJOYSAP_LOGO'. "Object uploaded by OAER Transaction
+*    CALL METHOD o_docu->display_document
+*      EXPORTING
+*        reuse_control = 'X'
+*        parent        = o_ref1.
+
+
+  ENDMETHOD.                    "PAGE_HEAD
+ENDCLASS.                    "HANDLE_EVENT IMPLEMENTATION
+
+START-OF-SELECTION.
+  PERFORM fetch_data_from_spfli.
+  CALL SCREEN 100.
+*&———————————————————————*
+FORM fetch_data_from_spfli .
+  SELECT * FROM spfli INTO TABLE it_spfli.
+ENDFORM.                    " FETCH_DATA_FROM_SPFLI
+*&———————————————————————*
+
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'STATUS'.
+  SET TITLEBAR 'TITLE'.
+ENDMODULE.                 " STATUS_0100  OUTPUT
+
+*———————————————————————-*
+MODULE split_container OUTPUT.
+  IF o_cust IS NOT BOUND.
+    CREATE OBJECT o_cust
+      EXPORTING
+        container_name = 'CONTAINER'.
+
+    CREATE OBJECT o_spli
+      EXPORTING
+        parent  = o_cust
+        rows    = 2
+        columns = 1.
+
+    CALL METHOD o_spli->get_container
+      EXPORTING
+        row       = 1
+        column    = 1
+      RECEIVING
+        container = o_ref1.
+
+    CALL METHOD o_spli->set_row_height
+      EXPORTING
+        id     = 1
+        height = 25.
+
+    CALL METHOD o_spli->get_container
+      EXPORTING
+        row       = 2
+        column    = 1
+      RECEIVING
+        container = o_ref2.
+
+    CREATE OBJECT o_docu
+      EXPORTING
+        style = 'ALV_GRID'.
+  ENDIF.
+ENDMODULE.                 " SPLIT_CONTAINER  OUTPUT
+*———————————————————————-*
+MODULE display_alv OUTPUT.
+  IF o_alv IS NOT BOUND.
+    CREATE OBJECT o_alv
+      EXPORTING
+        i_parent = o_ref2.
+
+    SET HANDLER handle_event=>page_head FOR o_alv.
+
+    CALL METHOD o_alv->set_table_for_first_display
+      EXPORTING
+        i_structure_name = 'SPFLI'
+      CHANGING
+        it_outtab        = it_spfli.
+
+    CALL METHOD o_alv->list_processing_events
+      EXPORTING
+        i_event_name = 'TOP_OF_PAGE'
+        i_dyndoc_id  = o_docu.
+  ENDIF.
+ENDMODULE.                " DISPLAY_ALV  OUTPUT
+*———————————————————————-*
+MODULE user_command_0100 INPUT.
+  CASE  sy-ucomm.
+    WHEN 'BACK'.
+      LEAVE PROGRAM.
+  ENDCASE.
+ENDMODULE.
+" user_command_0100  input

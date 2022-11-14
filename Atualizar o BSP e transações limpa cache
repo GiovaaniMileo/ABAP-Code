@@ -1,0 +1,14 @@
+Atualizar o BSP de um app e refletir no front (Não esquecer de segurar o botão do "recarregar tela F5"  para limpaza do cache)
+
+/UI5/APP_INDEX_CALCULATE - Re indexa todas app ui5 (Deu certo para alteração no BSP back end atualizando o front)
+
+
+
+Programas ui5 para limpar e deletas cache
+/UI2/CACHE	Register service for UI2 cache use
+/UI2/CACHE_DEL	Delete cache entries
+/UI2/EAM_BUILD_CACHE  programa que Limpa cache de publicação dos apps
+/UI2/INVALIDATE_CLIENT_CACHES - programa que limpa cache de publicação dos apps
+/UI2/INVALIDATE_GLOBAL_CACHES - programa que limpa cache de publicação dos apps
+/ui2/delete_cache_after_imp - programa que limpa cache de publicação dos apps
+/UI2/CHIP_SYNCHRONIZE_CACHE - programa que sincroniza app lauchpad

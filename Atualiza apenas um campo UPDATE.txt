@@ -1,0 +1,9 @@
+UPDATE PA2012 SET ENDDA = ES_2012-ENDDA
+             WHERE  PERNR = ES_2012-PERNR
+               AND  SUBTY = 'ZM24'
+               AND  OBJPS = ES_2012_OLD-OBJPS
+               AND  SPRPS = ES_2012_OLD-SPRPS
+               AND  BEGDA = ES_2012_OLD-BEGDA
+               AND  ENDDA = ES_2012_OLD-ENDDA
+               AND  SEQNR = ES_2012_OLD-SEQNR.
+Obs: O SET É O CAMPO QUE SERÁ ATUALIZADO

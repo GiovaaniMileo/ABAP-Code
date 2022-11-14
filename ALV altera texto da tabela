@@ -1,0 +1,445 @@
+FORM f_carga_full.
+
+  "reiniciar tabela de histórico e efetuar carga full?
+*  TRY.
+*      DELETE FROM /andina/hrpa_mdl.
+*      COMMIT WORK.
+*
+*      "efetua carga full na tabela
+*      MODIFY /andina/hrpa_mdl FROM TABLE i_hrpa_mdl_new.
+*      COMMIT WORK.
+*
+*    CATCH cx_sy_itab_line_not_found. "não
+*      "elimina informação antiga do histórico
+*      MODIFY /andina/hrpa_mdl FROM st_hrpa_mdl_new.
+*  ENDTRY.
+
+*  "foi feita alguma atualização nos dados?
+*  IF lt_hrpa_mdl_new[] IS NOT INITIAL. "sim
+*    COMMIT WORK.
+*  ELSE. "dados não encontrados
+*    MESSAGE s260(aq).
+*    LEAVE LIST-PROCESSING.
+*  ENDIF.
+*ELSE. "não
+*  "primeira carga
+*  MODIFY /andina/hrpa_mdl FROM TABLE lt_hrpa_mdl_new.
+*  COMMIT WORK.
+*ENDIF.
+*ENDIF.
+*CATCH cx_sy_open_sql_db.
+*ENDTRY.
+**--Fim da modificação - TRO-GUSTAVO - Exakta - 3000012911
+**break ssecondo.
+*DELETE DATASET w_fileloc.
+*OPEN DATASET w_fileloc FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
+*CONCATENATE 'UID,NOME DE USUARIO,SENHA,PRIMEIRO NOME,'
+*'NOME DO MEIO,ULTIMO NOME,EMAIL,SUSPENSO,'
+*'DATA DE CRIACAO,DATA DE ATUALIZACAO,'
+*'DATA DE EXCLUSAO,MATRICULA,GERENCIA,'
+*'UNIDADE,CARGO,POSICAO,SUPERIOR IMEDIATO,'
+*'CODIGO UNIDADE SUPERIOR,DESCRICAO UNIDADE SUPERIOR,DESCSUBAREA,DESCDIRETORIA,'
+*'NASCIMENTO,CPF' INTO v_line.
+*TRANSFER v_line TO w_fileloc.
+*CLEAR v_line.
+*LOOP AT <g00> ASSIGNING <g00_lin>."into zg00.
+*ASSIGN COMPONENT 'P0465-CPF_NR' OF STRUCTURE <g00_lin> TO FIELD-SYMBOL(<lfs_cpf>).
+*lv_cpf = <lfs_cpf>.
+*<lfs_cpf> = lv_cpf.
+*CLEAR v_line.
+*DO.
+*UNASSIGN <fs>.
+*ASSIGN COMPONENT sy-index OF STRUCTURE <g00_lin> TO <fs>."zg00 TO <fs>.
+*IF <fs> IS ASSIGNED.
+*CONCATENATE v_line <fs> INTO v_line SEPARATED BY ','.
+*ELSE.
+*EXIT.
+*ENDIF.
+*ENDDO.
+*SHIFT v_line LEFT DELETING LEADING ','.
+*TRANSFER v_line TO w_fileloc.
+*ENDLOOP.
+*CLOSE DATASET w_fileloc.
+ENDFORM.
+FORM select_tab_historico.
+  "seleção dos dados da tabela de histórico
+  SELECT *
+    FROM /andina/hrpa_mdl
+    INTO TABLE i_hrpa_mdl_old.
+*    FOR ALL ENTRIES IN lt_hrpa_mdl_new
+*    WHERE pernr   EQ lt_hrpa_mdl_new-pernr
+*    AND sapuser   EQ lt_hrpa_mdl_new-sapuser.
+
+ENDFORM.
+FORM select_tab_new.
+* 0000,0001,0002,0105,0709,0465.
+  rp_provide_from_last p0000 space  pn-begda pn-endda.
+  rp_provide_from_last p0001 space  pn-begda pn-endda.
+  rp_provide_from_last p0002 space  pn-begda pn-endda.
+  rp_provide_from_last p0105 '0001' pn-begda pn-endda.
+  rp_provide_from_last p0465 space  pn-begda pn-endda.
+  rp_provide_from_last p0709 space  pn-begda pn-endda.
+
+  st_hrpa_mdl_new-pernr   = p0000-pernr.
+  st_hrpa_mdl_new-status  = p0000-stat2.
+  st_hrpa_mdl_new-vorna   = p0002-vorna.
+  st_hrpa_mdl_new-rufnm   = p0002-rufnm.
+  st_hrpa_mdl_new-nachn   = p0002-nachn.
+  st_hrpa_mdl_new-gbdat   = p0002-gbdat.
+  st_hrpa_mdl_new-cpf_nr  = p0465-cpf_nr.
+  st_hrpa_mdl_new-sapuser = p0105-usrid.
+  st_hrpa_mdl_new-senha   = p0105-usrid.
+  st_hrpa_mdl_new-matricula = p0001-pernr.
+  st_hrpa_mdl_new-datacriac = sy-datum.
+  st_hrpa_mdl_new-dataat    = sy-datum.
+  st_hrpa_mdl_new-dataex    = sy-datum.
+
+  TRANSLATE st_hrpa_mdl_new-sapuser TO LOWER CASE.
+  TRANSLATE st_hrpa_mdl_new-senha TO LOWER CASE.
+
+  rp_provide_from_last p0105 '0010' pn-begda pn-endda.
+  st_hrpa_mdl_new-email   = p0105-usrid_long.
+
+  CALL FUNCTION 'HRWPC_RFC_BTRTL_TEXT_GET'
+    EXPORTING
+      werks      = p0001-werks
+      btrtl      = p0001-btrtl
+    IMPORTING
+      btrtl_text = st_hrpa_mdl_new-text_p0001_btrtl.
+
+  CALL FUNCTION 'HRWPC_RFC_ORGEH_TEXT_GET'
+    EXPORTING
+      orgeh       = p0001-orgeh
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      orgeh_text2 = st_hrpa_mdl_new-text_p0001_orgeh.
+
+  CALL FUNCTION 'HRWPC_RFC_STELL_TEXT_GET'
+    EXPORTING
+      stell       = p0001-stell
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      stell_text2 = st_hrpa_mdl_new-text_p0001_stell.
+
+  CALL FUNCTION 'HRWPC_RFC_PLANS_TEXT_GET'
+    EXPORTING
+      plans       = p0001-plans
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      plans_text2 = st_hrpa_mdl_new-text_p0001_plans.
+
+*codunisup
+*descunisup
+*subareamoodle
+*diretoriamoodle
+
+* Compara a tabela nova com antiga para ver se houve alteração
+  READ TABLE i_hrpa_mdl_old INTO DATA(st_hrpa_mdl_old) WITH KEY pernr   = st_hrpa_mdl_new-pernr
+                                                                sapuser = st_hrpa_mdl_new-sapuser.
+
+* Se houve registro modifica já existente atualizando a linha
+  IF st_hrpa_mdl_old IS NOT INITIAL.
+    PERFORM check_change USING st_hrpa_mdl_old st_hrpa_mdl_new.
+
+  ELSE. "Senao insere linha nova
+    DATA(st_log)  = st_hrpa_mdl_new.
+    APPEND st_log TO i_log.
+
+*    MODIFY /andina/hrpa_mdl FROM st_hrpa_mdl_new.
+  ENDIF.
+
+ENDFORM.
+
+FORM get_answer_full CHANGING p_answer.
+
+  IF p_full IS NOT INITIAL.
+
+    CALL FUNCTION 'POPUP_TO_CONFIRM'
+      EXPORTING
+        titlebar              = 'Confirma ação?'
+        text_question         = 'Os dados da tabela de histórico serão eliminados, gerando nova carga full. Deseja continuar?'
+        text_button_1         = 'Sim'(001)
+        text_button_2         = 'Não'(002)
+        default_button        = '2'
+        display_cancel_button = ''
+      IMPORTING
+        answer                = p_answer
+      EXCEPTIONS
+        text_not_found        = 1
+        OTHERS                = 2.
+
+    "não
+    IF p_answer = '2'.
+      LEAVE LIST-PROCESSING. "volta para a tela inicial
+    ENDIF.
+
+  ENDIF.
+
+ENDFORM.
+FORM select_tab_new_full.
+* 0000,0001,0002,0105,0709,0465.
+  rp_provide_from_last p0000 space  pn-begda pn-endda.
+  rp_provide_from_last p0001 space  pn-begda pn-endda.
+  rp_provide_from_last p0002 space  pn-begda pn-endda.
+  rp_provide_from_last p0105 '0001' pn-begda pn-endda.
+  rp_provide_from_last p0465 space  pn-begda pn-endda.
+  rp_provide_from_last p0709 space  pn-begda pn-endda.
+
+  st_hrpa_mdl_new-pernr   = p0000-pernr.
+  st_hrpa_mdl_new-status  = p0000-stat2.
+  st_hrpa_mdl_new-vorna   = p0002-vorna.
+  st_hrpa_mdl_new-rufnm   = p0002-rufnm.
+  st_hrpa_mdl_new-nachn   = p0002-nachn.
+  st_hrpa_mdl_new-gbdat   = p0002-gbdat.
+  st_hrpa_mdl_new-cpf_nr  = p0465-cpf_nr.
+  st_hrpa_mdl_new-sapuser = p0105-usrid.
+  st_hrpa_mdl_new-senha   = p0105-usrid.
+  st_hrpa_mdl_new-matricula = p0001-pernr.
+  st_hrpa_mdl_new-datacriac = sy-datum.
+  st_hrpa_mdl_new-dataat    = sy-datum.
+  st_hrpa_mdl_new-dataex    = sy-datum.
+
+  TRANSLATE st_hrpa_mdl_new-sapuser TO LOWER CASE.
+  TRANSLATE st_hrpa_mdl_new-senha TO LOWER CASE.
+
+  rp_provide_from_last p0105 '0010' pn-begda pn-endda.
+  st_hrpa_mdl_new-email   = p0105-usrid_long.
+
+  CALL FUNCTION 'HRWPC_RFC_BTRTL_TEXT_GET'
+    EXPORTING
+      werks      = p0001-werks
+      btrtl      = p0001-btrtl
+    IMPORTING
+      btrtl_text = st_hrpa_mdl_new-text_p0001_btrtl.
+
+  CALL FUNCTION 'HRWPC_RFC_ORGEH_TEXT_GET'
+    EXPORTING
+      orgeh       = p0001-orgeh
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      orgeh_text2 = st_hrpa_mdl_new-text_p0001_orgeh.
+
+  CALL FUNCTION 'HRWPC_RFC_STELL_TEXT_GET'
+    EXPORTING
+      stell       = p0001-stell
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      stell_text2 = st_hrpa_mdl_new-text_p0001_stell.
+
+  CALL FUNCTION 'HRWPC_RFC_PLANS_TEXT_GET'
+    EXPORTING
+      plans       = p0001-plans
+      begda       = p0001-begda
+      endda       = p0001-endda
+      langu       = sy-langu
+    IMPORTING
+      plans_text2 = st_hrpa_mdl_new-text_p0001_plans.
+
+*codsuperior
+*codunisup
+*descunisup
+*subareamoodle
+*diretoriamoodle
+
+  APPEND st_hrpa_mdl_new TO i_hrpa_mdl_new.
+
+ENDFORM.
+FORM check_change USING st_hrpa_mdl_old
+                        st_hrpa_mdl_new TYPE /andina/hrpa_mdl.
+
+  DATA: st_hrpa_mdl_old_aux TYPE ty_aux_comp,
+        st_hrpa_mdl_new_aux TYPE ty_aux_comp.
+
+  MOVE-CORRESPONDING st_hrpa_mdl_old TO st_hrpa_mdl_old_aux.
+  MOVE-CORRESPONDING st_hrpa_mdl_new TO st_hrpa_mdl_new_aux.
+
+  IF st_hrpa_mdl_old_aux <> st_hrpa_mdl_new_aux.
+
+    DATA(st_log)  = st_hrpa_mdl_new.
+    APPEND st_log TO i_log.
+
+*    MODIFY /andina/hrpa_mdl FROM st_hrpa_mdl_new.
+  ENDIF.
+
+ENDFORM.
+FORM f_exibe_alv.
+* Monta colunas do relatório
+  PERFORM f_monta_fieldcat.
+
+* Monta layout do relatório
+  PERFORM f_monta_layout.
+
+* Monta quebra do relatório
+*  PERFORM f_monta_quebra.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      it_fieldcat        = i_slis_fieldcat
+      is_layout          = st_slis_layout
+*     it_excluding       = it_exclude
+      it_special_groups  = i_slis_egp
+      it_sort            = i_sort[]
+      i_save             = 'U'
+      i_default          = 'X'
+*     is_variant         = sy-repid
+    TABLES
+      t_outtab           = i_log
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+
+  CHECK sy-subrc <> 0
+    AND NOT sy-msgid IS INITIAL.
+
+  MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+          WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+ENDFORM.
+FORM f_monta_fieldcat.
+
+  CLEAR:   i_slis_fieldcat.
+  REFRESH: i_slis_fieldcat.
+
+* Gera Fieldcat
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_program_name         = sy-repid
+      i_internal_tabname     = 'I_LOG'
+      i_structure_name       = '/ANDINA/HRPA_MDL'
+    CHANGING
+      ct_fieldcat            = i_slis_fieldcat
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+
+  CHECK sy-subrc IS INITIAL.
+
+  LOOP AT i_slis_fieldcat INTO DATA(st_slis_fieldcat).
+
+    CASE st_slis_fieldcat-fieldname.
+      WHEN 'PERNR'.
+        st_slis_fieldcat-seltext_s =
+        st_slis_fieldcat-seltext_m =
+        st_slis_fieldcat-seltext_l =
+        st_slis_fieldcat-reptext_ddic = 'UID'.
+*      WHEN 'SAPUSER'.
+*        st_slis_fieldcat-seltext_s = 
+*        st_slis_fieldcat-seltext_m = 
+*        st_slis_fieldcat-seltext_l = 
+*        st_slis_fieldcat-reptext_ddic = 'Nome de Usuário'.
+*      WHEN 'SENHA'.
+*        st_slis_fieldcat-seltext_s = 'Senha'.
+*        st_slis_fieldcat-seltext_m = 'Senha'.
+*        st_slis_fieldcat-seltext_l = 'Senha'.
+*      WHEN 'VORNA'.
+*        st_slis_fieldcat-seltext_s = 'Primeiro Nome'.
+*        st_slis_fieldcat-seltext_s = 'Primeiro Nome'.
+*        st_slis_fieldcat-seltext_s = 'Primeiro Nome'.
+*      WHEN 'RUFNM'.
+*        st_slis_fieldcat-seltext_s = 'Nome do Meio'.
+*        st_slis_fieldcat-seltext_m = 'Nome do Meio'.
+*        st_slis_fieldcat-seltext_l = 'Nome do Meio'.
+*      WHEN 'NACHN'.
+*        st_slis_fieldcat-seltext_s = 'Último Nome'.
+*        st_slis_fieldcat-seltext_m = 'Último Nome'.
+*        st_slis_fieldcat-seltext_l = 'Último Nome'.
+*      WHEN 'EMAIL'.
+*        st_slis_fieldcat-seltext_s = 'Email'.
+*        st_slis_fieldcat-seltext_m = 'Email'.
+*        st_slis_fieldcat-seltext_l = 'Email'.
+*      WHEN 'STATUS'.
+*        st_slis_fieldcat-seltext_s = 'Suspenso'.
+*        st_slis_fieldcat-seltext_s = 'Suspenso'.
+*        st_slis_fieldcat-seltext_s = 'Suspenso'.
+*      WHEN 'DATACRIAC'.
+*        st_slis_fieldcat-seltext_s = 'Data de Criação'.
+*        st_slis_fieldcat-seltext_s = 'Data de Criação'.
+*        st_slis_fieldcat-seltext_s = 'Data de Criação'.
+*      WHEN 'DATAAT'.
+*        st_slis_fieldcat-seltext_s = 'Data de Atualização'.
+*        st_slis_fieldcat-seltext_s = 'Data de Atualização'.
+*        st_slis_fieldcat-seltext_s = 'Data de Atualização'.
+*      WHEN 'DATAEX'.
+*        st_slis_fieldcat-seltext_s = 'Data de Exclusão'.
+*        st_slis_fieldcat-seltext_s = 'Data de Exclusão'.
+*        st_slis_fieldcat-seltext_s = 'Data de Exclusão'.
+*      WHEN 'MATRICULA'.
+*        st_slis_fieldcat-seltext_s = 'Matricula'.
+*        st_slis_fieldcat-seltext_s = 'Matricula'.
+*        st_slis_fieldcat-seltext_s = 'Matricula'.
+*      WHEN 'TEXT_P0001_BTRTL'.
+*        st_slis_fieldcat-seltext_s = 'Gerência'.
+*        st_slis_fieldcat-seltext_s = 'Gerência'.
+*        st_slis_fieldcat-seltext_s = 'Gerência'.
+*      WHEN 'TEXT_P0001_ORGEH'.
+*        st_slis_fieldcat-seltext_s = 'Unidade'.
+*        st_slis_fieldcat-seltext_s = 'Unidade'.
+*        st_slis_fieldcat-seltext_s = 'Unidade'.
+*      WHEN 'TEXT_P0001_STELL'.
+*        st_slis_fieldcat-seltext_s = 'Cargo'.
+*        st_slis_fieldcat-seltext_s = 'Cargo'.
+*        st_slis_fieldcat-seltext_s = 'Cargo'.
+*      WHEN 'TEXT_P0001_PLANS'.
+*        st_slis_fieldcat-seltext_s = 'Posição'.
+*        st_slis_fieldcat-seltext_s = 'Posição'.
+*        st_slis_fieldcat-seltext_s = 'Posição'.
+*      WHEN 'CODSUPERIOR'.
+*        st_slis_fieldcat-seltext_s = 'Superior Imediato'.
+*        st_slis_fieldcat-seltext_s = 'Superior Imediato'.
+*        st_slis_fieldcat-seltext_s = 'Superior Imediato'.
+*      WHEN 'CODUNISUP'.
+*        st_slis_fieldcat-seltext_s = 'Código Unidade Superior'.
+*        st_slis_fieldcat-seltext_s = 'Código Unidade Superior'.
+*        st_slis_fieldcat-seltext_s = 'Código Unidade Superior'.
+*      WHEN 'DESCUNISUP'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Unidade Superior'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Unidade Superior'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Unidade Superior'.
+*      WHEN 'SUBAREAMOODLE'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Subarea'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Subarea'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Subarea'.
+*      WHEN 'DIRETORIAMOODLE'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Diretoria'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Diretoria'.
+*        st_slis_fieldcat-seltext_s = 'Descrição Diretoria'.
+*      WHEN 'GBDAT'.
+*        st_slis_fieldcat-seltext_s = 'Nascimento'.
+*        st_slis_fieldcat-seltext_s = 'Nascimento'.
+*        st_slis_fieldcat-seltext_s = 'Nascimento'.
+    ENDCASE.
+
+    MODIFY i_slis_fieldcat FROM st_slis_fieldcat.
+    CLEAR st_slis_fieldcat.
+  ENDLOOP.
+
+ENDFORM.
+FORM f_monta_layout.
+  CLEAR st_kkblo_layout.
+
+  st_kkblo_layout-zebra              = abap_true.
+  st_kkblo_layout-group_buttons      = abap_true.
+  st_kkblo_layout-totals_only        = space.
+  st_kkblo_layout-cwidth_opt         = abap_true.
+  st_kkblo_layout-colwidth_optimize  = abap_true.
+
+* Transforma estrutura em formato SLIS
+  CALL FUNCTION 'REUSE_ALV_TRANSFER_DATA_BACK'
+    EXPORTING
+      is_layout         = st_kkblo_layout
+    IMPORTING
+      es_layout         = st_slis_layout
+      et_special_groups = i_slis_egp.
+
+ENDFORM.

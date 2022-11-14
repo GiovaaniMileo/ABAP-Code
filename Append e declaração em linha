@@ -1,0 +1,28 @@
+Append e declaração em linha
+
+data itab_o type table
+
+append: 10 to itab_o,
+		20 to itab_o,
+		30 to itab_o.
+
+data(itab) = value table( (10) (20) (30) ).
+
+----------------------** Loop com append
+
+DATA: gt_citys TYPE ty_citys,
+      gs_ship  TYPE ty_ship,
+      gs_city  TYPE ort01.
+
+LOOP AT gt_ships INTO gs_ship.
+  gs_city =  gs_ship-city.
+  APPEND gs_city TO gt_citys.
+ENDLOOP.
+
+
+data(gt_citys) = value ty_citys (ou pode usar #) ( for ls_ship in gt_ship (ls_ship-city ) ). 
+
+
+Ou com where
+
+DATA(gt_citys) = VALUE ty_citys( FOR ls_ship IN gt_ships WHERE ( route = 'R0001' ) ( ls_ship-city ) ).

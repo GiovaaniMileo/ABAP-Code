@@ -1,0 +1,5 @@
+ 
+ Append entre duas tabelas ou estruturas passando apenas os campos que são diferentes entre elas 
+
+  	blehr								subty
+  lt_searchhelpt = CORRESPONDING #( lt_searchhelp MAPPING blehr = subty ).

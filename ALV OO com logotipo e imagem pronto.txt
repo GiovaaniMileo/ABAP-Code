@@ -1,0 +1,616 @@
+﻿*---------------------------------------------------------------------------
+* Programa : ZHR_TIG_068
+* Cliente  : Tigre
+* Módulo   : HCM_PY
+* Transação:
+* Descrição:
+*---------------------------------------------------------------------------
+* Histórico de Alterações:
+*---------------------------------------------------------------------------
+* Data       |Change #  |Autor                 |AlteraÁ„o
+*---------------------------------------------------------------------------
+
+REPORT  zhr_tig_068.
+
+* Includes
+INCLUDE zhr_tig_068_top.
+INCLUDE zhr_tig_068_scr.
+INCLUDE zhr_tig_068_f01.
+
+**&---------------------------------------------------------------------*
+*& Tela de Seleção
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK a1 WITH FRAME TITLE text-t01.
+PARAMETERS: p_pdf RADIOBUTTON GROUP g1,
+            p_alv RADIOBUTTON GROUP g1 DEFAULT 'X'.
+SELECTION-SCREEN END OF BLOCK a1.
+
+*&---------------------------------------------------------------------*
+*& Inicialização
+*&---------------------------------------------------------------------*
+INITIALIZATION.
+
+  PERFORM f_initialization.
+
+*&---------------------------------------------------------------------*
+*& Inicio
+*&---------------------------------------------------------------------*
+START-OF-SELECTION.
+
+GET peras.
+
+  PERFORM zf_seleciona_dados.
+
+END-OF-SELECTION.
+
+*CALL SCREEN 0100.
+
+  PERFORM zf_gera_alv.
+
+
+*&---------------------------------------------------------------------*
+*&  Include           ZHR_TIG_068_F01
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  ZF_GERA_ALV
+*&---------------------------------------------------------------------*
+FORM zf_gera_alv .
+  DATA: l_text TYPE string.
+  DATA: l_icon TYPE string.
+
+  PERFORM zf_factory.
+  PERFORM zf_define_chaves.
+  PERFORM zf_header.
+*
+  l_functions = l_alv->get_functions( ).
+  l_functions->set_all( abap_true ).
+  l_display   = l_alv->get_display_settings( ).
+  l_display->set_striped_pattern( abap_true ).
+
+* Ativar layout
+  l_layout = l_alv->get_layout( ).
+  l_layout->set_default( abap_true ).
+  l_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+
+  PERFORM zf_ativa_seleciona_coluna.
+*  PERFORM zf_sort.
+  PERFORM zf_altera_label_campos.
+
+***************** teste
+*  l_alv->set_screen_status( pfstatus = '0100'
+*                                  report = sy-repid
+*                                  set_functions = l_alv->c_functions_all ).
+*  l_alv->set_screen_status( pfstatus = 'ZSTATUS_GUI'
+*                                  report = 'ZZZTESTE'
+*                                  set_functions = l_alv->c_functions_all ).
+
+***************** teste
+
+  l_alv->display( ).
+
+ENDFORM.                    " ZF_GERA_ALV
+*&---------------------------------------------------------------------*
+*&      Form  ZF_FACTORY
+*&---------------------------------------------------------------------*
+
+FORM zf_factory .
+
+*  TRY.
+*      CALL METHOD cl_salv_table=>factory
+*        IMPORTING
+*          r_salv_table = l_alv
+*        CHANGING
+*          t_table      = tg_saida.
+*
+*    CATCH cx_salv_msg .
+*      MESSAGE 'Erro ao gerar relatório'(003) TYPE 'S' DISPLAY LIKE 'E'.
+*  ENDTRY.
+
+  IF gr_container IS NOT BOUND.
+    IF cl_salv_table=>is_offline( ) EQ if_salv_c_bool_sap=>false.
+      CREATE OBJECT gr_container
+        EXPORTING
+          container_name = 'CONTAINER'.
+    ENDIF.
+
+*... §2 create an ALV table
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            r_container    = gr_container
+*            container_name = 'CONTAINER'
+          IMPORTING
+            r_salv_table   = l_alv
+          CHANGING
+            t_table        = tg_saida ).
+      CATCH cx_salv_msg.                                "#EC NO_HANDLER
+    ENDTRY.
+  ENDIF.
+ENDFORM.                    " ZF_FACTORY
+*&---------------------------------------------------------------------*
+*&      Form  ZF_DEFINE_CHAVES
+*&---------------------------------------------------------------------*
+FORM zf_define_chaves .
+
+* Colunas
+  l_columns = l_alv->get_columns( ).
+  TRY.
+      l_columns->set_optimize( abap_true ).
+
+**     Empresa
+*      l_column_table ?= l_columns->get_column( columnname = 'PERNR' ).
+*      l_column_table->set_key( abap_true ).
+*      l_column_table ?= l_columns->get_column( columnname = 'ENAME' ).
+*      l_column_table->set_key( abap_true ).
+
+    CATCH cx_salv_not_found.                            "#EC NO_HANDLER
+  ENDTRY.
+
+ENDFORM.                    " ZF_DEFINE_CHAVES
+*&---------------------------------------------------------------------*
+*&      Form  ZF_HEADER
+*&---------------------------------------------------------------------*
+FORM zf_header .
+  DATA: v_linhas        TYPE n LENGTH 5,
+         lv_text        TYPE c LENGTH 120,
+         wa_header_dados TYPE ty_header,
+         lv_logo         TYPE bds_typeid.
+
+  DATA: l_top_element TYPE REF TO cl_salv_form_layout_grid,
+        l_end_element TYPE REF TO cl_salv_form_layout_flow,
+        l_grid        TYPE REF TO cl_salv_form_layout_grid,
+        l_header_info TYPE REF TO cl_salv_form_header_info,
+        l_action      TYPE REF TO cl_salv_form_action_info,
+        l_textview1   TYPE REF TO cl_salv_form_text,
+        l_picture     TYPE REF TO cl_salv_form_picture,
+        l_text        TYPE string,
+        l_h_flow      TYPE REF TO cl_salv_form_layout_flow,
+        l_h_label    TYPE REF TO cl_salv_form_label.
+
+* Criar cabeçalho do ALV
+  CREATE OBJECT l_grid.
+  CREATE OBJECT l_header_info.
+
+  CREATE OBJECT l_top_element
+    EXPORTING
+      columns = 2.
+
+* Cria o Grip para exibição
+  l_grid = l_top_element->create_grid( row = 3 " Linha do logo
+                                         column = 1 ).
+
+* Titulo
+  l_h_label = l_grid->create_label( row = 1  column = 1 ).
+  l_h_label->set_text( value = text-001 ).
+
+* Período de análise
+  PERFORM formata_data USING pn-begda CHANGING wa_header_dados-per_anali.
+
+  CLEAR lv_text.
+  CONCATENATE text-002 wa_header_dados-per_anali INTO lv_text SEPARATED BY space.
+
+  l_textview1 = l_grid->create_text(
+      row     = 2
+      column  = 1
+      text    = lv_text
+      tooltip = 'Tooltip' ).
+
+* Data
+  PERFORM formata_data USING sy-datum CHANGING wa_header_dados-begda .
+
+* Horas
+  CALL FUNCTION 'CONVERSION_EXIT_BCVTM_OUTPUT'
+    EXPORTING
+      input  = sy-uzeit
+    IMPORTING
+      output = wa_header_dados-hora.
+
+  CLEAR lv_text.
+  CONCATENATE text-003 wa_header_dados-begda text-004 wa_header_dados-hora
+  INTO lv_text SEPARATED BY space.
+
+  l_textview1 = l_grid->create_text(
+      row     = 3
+      column  = 1
+      text    = lv_text
+      tooltip = 'Tooltip' ).
+
+* Nome do usuario logado
+  CLEAR lv_text.
+  CONCATENATE text-005 sy-uname INTO lv_text SEPARATED BY space.
+
+  l_textview1 = l_grid->create_text(
+      row     = 4
+      column  = 1
+      text    = lv_text
+      tooltip = 'Tooltip' ).
+
+* Quantidade de registros
+  DESCRIBE TABLE tg_saida LINES v_linhas.
+
+  wa_header_dados-qtd_reg = v_linhas.
+
+  CLEAR lv_text.
+  CONCATENATE text-006 v_linhas INTO lv_text SEPARATED BY space.
+
+  l_textview1 = l_grid->create_text(
+      row     = 5
+      column  = 1
+      text    = lv_text
+      tooltip = 'Tooltip' ).
+
+* Posiciona o grid do logotipo ao lado dos textos
+  l_grid = l_top_element->create_grid( row = 3 " Linha do logo
+                                         column = 7 ).
+
+* Pega o logo conforme a empresa na tela de seleção
+  CASE pnpbukrs-low.
+    WHEN 'B010'.
+      lv_logo = 'Z_LOGO_TIGRE'.
+
+    WHEN 'C010'.
+      lv_logo = 'Z_LOGO_CLARIS'.
+
+    WHEN 'P010'.
+      lv_logo =   'Z_LOGO_PINCEIS'.
+
+    WHEN 'S010'.
+      lv_logo = 'Z_LOGO_SILVER'.
+  ENDCASE.
+
+* Passa o ID do logo
+  CREATE OBJECT l_picture
+    EXPORTING
+      picture_id = 'ZLOGO_TIGRE_148_PQ'.
+
+* Cria no grid o logo tipo
+  CALL METHOD l_grid->set_element
+    EXPORTING
+      row       = 1
+      column    = 2
+      r_element = l_picture.
+
+  l_alv->set_top_of_list( l_top_element ).
+
+ENDFORM.                    " ZF_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ATIVA_SELECIONA_COLUNA
+*&---------------------------------------------------------------------*
+FORM zf_ativa_seleciona_coluna .
+
+*  ativar modo onde é possivel selecionar as colunas
+  l_selections = l_alv->get_selections( ).
+  l_selections->set_selection_mode( value = if_salv_c_selection_mode=>row_column ).
+
+
+ENDFORM.                    " ZF_ATIVA_SELECIONA_COLUNA
+*&---------------------------------------------------------------------*
+*&      Form  ZF_SORT
+*&---------------------------------------------------------------------*
+FORM zf_sort .
+
+* Ativar ordenação para os campos abaixo
+*  l_sorts = l_alv->get_sorts( ).
+*  TRY.
+*      l_sort = l_sorts->add_sort( columnname = 'PERNR'
+*                                  subtotal   = abap_true ).
+*    CATCH cx_salv_not_found  cx_salv_existing cx_salv_data_error. "#EC NO_HANDLER
+*  ENDTRY.
+
+ENDFORM.                    " ZF_SORT
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ALTERA_LABEL_CAMPOS
+*&---------------------------------------------------------------------*
+FORM zf_altera_label_campos .
+
+  PERFORM zf_change_label USING 'BUKRS      ' 'ID'.
+  PERFORM zf_change_label USING 'BUTXT      ' 'Descrição da empresa'.
+  PERFORM zf_change_label USING 'CNPJ       ' 'CNPJ'.
+  PERFORM zf_change_label USING 'PERNR      ' 'Matricula'.
+  PERFORM zf_change_label USING 'CNAME      ' 'Nome'.
+  PERFORM zf_change_label USING 'DT_ADMI    ' 'Data de admissão'.
+  PERFORM zf_change_label USING 'CPF        ' 'CPF'.
+  PERFORM zf_change_label USING 'MARG_DISP' 'Margem disponivel'.
+  PERFORM zf_change_label USING 'MARG_UTIL' 'Margem utilizada'.
+  PERFORM zf_change_label USING 'MARG_TOT ' 'Margem total'.
+  PERFORM zf_change_label USING 'DT_ANALISE ' 'Data Análise'.
+
+ENDFORM.                    " ZF_ALTERA_LABEL_CAMPOS
+*&---------------------------------------------------------------------*
+*&      Form  ZF_CHANGE_LABEL
+*&---------------------------------------------------------------------*
+FORM zf_change_label   USING p_campo
+                             p_label.
+
+
+  DATA: vl_tam TYPE i,
+        vl_outlen  TYPE lvc_outlen.
+
+* Passa o campo que vai obter a descrição dinamicamente
+  l_column_table ?= l_columns->get_column( columnname = p_campo ).
+
+*  vl_tam = strlen( p_label ).
+*  WRITE vl_tam  TO vl_outlen. UNPACK vl_outlen TO vl_outlen.
+
+  TRY.
+      l_column_table->set_short_text( space ).
+      l_column_table->set_medium_text( space ).
+      l_column_table->set_long_text( p_label ).
+    CATCH cx_salv_msg.
+
+  ENDTRY.
+
+*  l_column_table->set_output_length( vl_outlen ).
+  l_column_table->set_optimized( abap_true ).
+
+ENDFORM.                    " ZF_CHANGE_LABEL
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ATIVAR_SOMA
+*&---------------------------------------------------------------------*
+FORM zf_ativar_soma .
+
+** Ativar soma / média para os campos abaixo
+*  l_aggregations = l_alv->get_aggregations( ).
+*  l_aggregations->clear( ).
+*  TRY.
+*      l_aggregations->add_aggregation( columnname = 'BETRG' ).
+*    CATCH cx_salv_not_found cx_salv_data_error cx_salv_existing. "#EC NO_HANDLER
+*  ENDTRY.
+
+ENDFORM.                    " ZF_ATIVAR_SOMA
+*&---------------------------------------------------------------------*
+*&      Form  ZF_SELECIONA_DADOS
+*&---------------------------------------------------------------------*
+FORM zf_seleciona_dados .
+
+* Codigo da empresa
+  rp_provide_from_last p0001 space  pn-begda pn-endda.
+
+  wa_saida-bukrs = p0001-bukrs.
+
+* Matricula
+  wa_saida-pernr = p0001-pernr.
+
+* Descrição da empresa
+  DATA: wa_company TYPE adrc.
+
+  CALL FUNCTION 'HR_CL_COMPANY_DATA'
+    EXPORTING
+      company_code          = p0001-bukrs
+      iv_begda              = p0001-begda
+      iv_endda              = p0001-endda
+    IMPORTING
+      company_address       = wa_company
+    EXCEPTIONS
+      not_found             = 1
+      no_entry_found_t7cl30 = 2
+      no_authority          = 3
+      OTHERS                = 4.
+
+
+  CONCATENATE wa_company-name1 wa_company-name2 INTO wa_saida-butxt.
+
+* CNPJ
+  CALL FUNCTION 'J_1BREAD_CGC_COMPANY'
+    EXPORTING
+      bukrs      = p0001-bukrs
+    IMPORTING
+      cgc_number = wa_saida-cnpj.
+
+* Nome completo do colaborador
+  PERFORM f_retorna_nome_completo USING p0001 CHANGING wa_saida-cname.
+
+* CPF do colaborador
+  rp_provide_from_last p0465 '0001'  pn-begda pn-endda.
+
+  wa_saida-cpf = p0465-cpf_nr.
+
+* Data de Admissão
+  DATA lv_data TYPE begda.
+  CLEAR lv_data.
+
+  CALL FUNCTION 'RP_GET_HIRE_DATE'
+    EXPORTING
+      persnr          = p0001-pernr
+      check_infotypes = '0041'
+      datumsart       = '01'
+      status2         = '3'
+    IMPORTING
+      hiredate        = lv_data.
+
+  PERFORM formata_data USING lv_data CHANGING wa_saida-dt_admi.
+
+* Cálculo das margens
+  PERFORM calculo_margens CHANGING wa_saida-marg_disp wa_saida-marg_tot wa_saida-marg_util.
+
+* Data de analise
+  PERFORM formata_data USING pnpbegda CHANGING wa_saida-dt_analise.
+
+  APPEND wa_saida TO tg_saida.
+
+ENDFORM.                    "zf_seleciona_dados
+*&---------------------------------------------------------------------*
+*&      Form  F_RETORNA_NOME_COMPLETO
+*&---------------------------------------------------------------------*
+FORM f_retorna_nome_completo USING p0001 TYPE p0001 CHANGING wa_saida-cname.
+
+  DATA: wl_person TYPE person.
+
+  CLEAR wl_person.
+
+  CALL FUNCTION 'HR_GET_EMPLOYEE_DATA'
+    EXPORTING
+      person_id             = p0001-pernr
+      selection_begin       = p0001-begda
+      selection_end         = p0001-endda
+    IMPORTING
+      personal_data         = wl_person
+    EXCEPTIONS
+      person_not_found      = 1
+      no_active_integration = 2
+      OTHERS                = 3.
+
+  IF sy-subrc = 0.
+
+    wa_saida-cname = wl_person-ename.
+
+  ENDIF.
+
+ENDFORM.                    " F_RETORNA_NOME_COMPLETO
+*&---------------------------------------------------------------------*
+*&      Form  FORMATA_DATA
+*&---------------------------------------------------------------------*
+FORM formata_data  USING    p_data
+                   CHANGING p_dt_saida.
+
+* Converte data para DD.MM.AAAA
+  CALL FUNCTION 'CONVERSION_EXIT_ZDATA_OUTPUT'
+    EXPORTING
+      input  = p_data
+    IMPORTING
+      output = p_dt_saida.
+
+ENDFORM.                    " FORMATA_DATA
+*&---------------------------------------------------------------------*
+*&      Form  F_QUANTIDADE_REG
+*&---------------------------------------------------------------------*
+FORM f_quantidade_reg .
+
+ENDFORM.                    " F_QUANTIDADE_REG
+*&---------------------------------------------------------------------*
+*&      Form  CALCULO_MARGENS
+*&---------------------------------------------------------------------*
+FORM calculo_margens  CHANGING p_saida_margem_disp
+                               p_saida_margem_tot
+                               p_saida_margem_util.
+
+  DATA: wa_bt LIKE LINE OF tg_bt.
+
+  REFRESH: tg_rt,tg_wpbp,tg_bt.
+
+  PERFORM f_leitura_cluster CHANGING tg_rt tg_wpbp tg_bt.
+
+* Margem disponivel
+*  p_saida_margem_disp =
+
+* Margem utilizada
+  CLEAR wa_bt.
+
+  READ TABLE tg_bt INTO wa_bt WITH KEY lgart = '7016'.
+
+  p_saida_margem_util = wa_bt-betrg.
+
+* Margem total
+  p_saida_margem_tot = p_saida_margem_util + p_saida_margem_disp.
+
+ENDFORM.                    " CALCULO_MARGENS
+*&---------------------------------------------------------------------*
+*&      Form  F_LEITURA_CLUSTER
+*&---------------------------------------------------------------------*
+FORM f_leitura_cluster  CHANGING: pt_rt     TYPE STANDARD TABLE
+                                  pt_wpbp   TYPE STANDARD TABLE
+                                  pt_bt     TYPE STANDARD TABLE.
+
+  DATA: wg_rgdir    LIKE LINE OF tg_rgdir,
+        wa_bt       LIKE LINE OF tg_bt,
+        tl_rub_desc TYPE  TABLE OF tvarvc,
+        wa_rub_desc LIKE LINE OF tl_rub_desc,
+        lv_betrg    TYPE p0008-bet01.
+
+  CLEAR pt_rt.
+  REFRESH pt_rt.
+
+  CALL FUNCTION 'CD_READ_RGDIR'
+    EXPORTING
+      persnr          = p0001-pernr
+    TABLES
+      in_rgdir        = tg_rgdir
+    EXCEPTIONS
+      no_record_found = 1
+      OTHERS          = 2.
+
+  READ TABLE tg_rgdir INTO wg_rgdir WITH KEY fpper = pn-begda(6) "-> ANO/MES
+                                                     srtza = 'A'.
+  IF sy-subrc IS INITIAL.
+
+*   Function to read payroll
+    CALL FUNCTION 'PYXX_READ_PAYROLL_RESULT'
+      EXPORTING
+        clusterid                    = 'BR'
+        employeenumber               = p0001-pernr
+        sequencenumber               = wg_rgdir-seqnr
+      CHANGING
+        payroll_result               = tg_result
+      EXCEPTIONS
+        illegal_isocode_or_clusterid = 1
+        error_generating_import      = 2
+        import_mismatch_error        = 3
+        subpool_dir_full             = 4
+        no_read_authority            = 5
+        no_record_found              = 6
+        versions_do_not_match        = 7
+        error_reading_archive        = 8
+        error_reading_relid          = 9
+        OTHERS                       = 10.
+
+    APPEND LINES OF tg_result-inter-rt   TO pt_rt.
+    APPEND LINES OF tg_result-inter-wpbp TO pt_wpbp.
+    APPEND LINES OF tg_result-inter-bt   TO pt_bt.
+
+  ENDIF.
+
+* Seleciona as rubricas de desconto
+  SELECT *
+    FROM tvarvc
+    INTO TABLE tl_rub_desc
+    WHERE name EQ 'Z_RUBR_DESCONTO'.
+
+* 30% Salário
+*  READ TABLE tg_bt INTO wa_bt WITH KEY lgart = '/559'.
+
+  rp_provide_from_last p0008 space  pn-begda pn-endda.
+
+  lv_betrg =  p0008-bet01 * 30.
+  lv_betrg =  lv_betrg / 100.
+
+* Seleciona a rubrica de desconto
+  IF tg_bt IS NOT INITIAL.
+    LOOP AT tl_rub_desc INTO wa_rub_desc.
+
+      READ TABLE tg_bt INTO wa_bt WITH KEY lgart = wa_rub_desc-low.
+
+*    IF wa_bt.
+*
+*    ENDIF.
+
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR: wa_bt.
+ENDFORM.                    " F_LEITURA_CLUSTER
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE sy-ucomm .
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+*	WHEN OTHERS.
+  ENDCASE.
+
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'ZSTATUS_GUI'.
+*  SET TITLEBAR 'xxx'.
+
+  PERFORM zf_gera_alv.
+
+ENDMODULE.                 " STATUS_0100  OUTPUT

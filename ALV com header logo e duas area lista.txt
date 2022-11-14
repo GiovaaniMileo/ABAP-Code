@@ -1,0 +1,257 @@
+REPORT  zteste_gio2.
+
+DATA: BEGIN OF t_outtab OCCURS 0,
+        bukrs    LIKE bkpf-bukrs,
+        belnr    LIKE bkpf-belnr,
+        budat    LIKE bkpf-budat,
+        color(3) TYPE c,
+      END   OF t_outtab.
+
+DATA: lvc_s_layo  TYPE lvc_s_layo.
+DATA: gt_fieldcat TYPE lvc_t_fcat.
+DATA: gs_fieldcat TYPE lvc_s_fcat.
+
+DATA: fl_chg_color.
+DATA: grid1              TYPE REF TO cl_gui_alv_grid,
+      grid2              TYPE REF TO cl_gui_alv_grid,
+      g_custom_container TYPE REF TO cl_gui_custom_container.
+
+DATA: g_splitter_container   TYPE REF TO cl_gui_splitter_container.
+DATA: g_splitter_container_2 TYPE REF TO cl_gui_splitter_container.
+
+DATA: g_header_container     TYPE REF TO cl_gui_container.
+DATA: g_bottom_container     TYPE REF TO cl_gui_container.
+DATA: g_left_container  TYPE REF TO cl_gui_container,
+      g_right_container TYPE REF TO cl_gui_container.
+
+DATA picture                 TYPE REF TO cl_gui_picture.
+
+DATA: ok_code TYPE sy-ucomm.
+
+DATA  url(132).
+
+START-OF-SELECTION.
+
+  SELECT bukrs belnr budat UP TO 100 ROWS
+     FROM bkpf INTO TABLE t_outtab
+       WHERE bukrs = 'MAAB'.
+
+
+  CLEAR gs_fieldcat.
+
+  gs_fieldcat-ref_table = 'BKPF'.
+  gs_fieldcat-fieldname = 'BUKRS'.
+  APPEND gs_fieldcat TO gt_fieldcat.
+
+  gs_fieldcat-fieldname = 'BELNR'.
+  APPEND gs_fieldcat TO gt_fieldcat.
+
+  gs_fieldcat-fieldname = 'BUDAT'.
+  APPEND gs_fieldcat TO gt_fieldcat.
+
+  lvc_s_layo-info_fname = 'COLOR'.
+
+  PERFORM set_color.
+
+  CALL SCREEN 100.
+
+*&---------------------------------------------------------------------*
+*&      Form  SET_COLOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM set_color .
+
+  LOOP AT t_outtab.
+    IF sy-tabix = 3 OR sy-tabix = 6 OR sy-tabix = 9.
+      IF fl_chg_color IS INITIAL.
+        t_outtab-color = 'C30'.
+      ELSE.
+        t_outtab-color = 'C40'.
+      ENDIF.
+      MODIFY t_outtab.
+    ENDIF.
+  ENDLOOP.
+
+  IF fl_chg_color IS INITIAL.
+    fl_chg_color   = 'X'.
+  ELSE.
+    fl_chg_color   = space.
+  ENDIF.
+
+ENDFORM.                    " SET_COLOR
+
+*&---------------------------------------------------------------------*
+*&      Module  PBO_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE pbo_0100 OUTPUT.
+
+  SET PF-STATUS 'BARRA'.
+
+  IF g_custom_container IS INITIAL.
+
+    CREATE OBJECT g_custom_container
+      EXPORTING
+        container_name = 'CONTAINER'.
+
+* Create the Splitter wit 2 rows and 1 colunm
+    CREATE OBJECT g_splitter_container
+      EXPORTING
+        parent  = g_custom_container
+        rows    = 2
+        columns = 1.
+
+* Get container first row
+
+    CALL METHOD g_splitter_container->get_container
+      EXPORTING
+        row       = 1
+        column    = 1
+      RECEIVING
+        container = g_header_container.
+
+    CREATE OBJECT picture
+      EXPORTING
+        parent = g_header_container.
+
+* Set picture
+    PERFORM load_pic_from_db.
+
+* load picture
+    CALL METHOD picture->load_picture_from_url
+      EXPORTING
+        url = url.
+
+* Get container second row
+    CALL METHOD g_splitter_container->get_container
+      EXPORTING
+        row       = 2
+        column    = 1
+      RECEIVING
+        container = g_bottom_container.
+
+* Create nested splitter with 1 row and 2 colunms
+
+    CREATE OBJECT g_splitter_container_2
+      EXPORTING
+        parent  = g_bottom_container
+        rows    = 1
+        columns = 2.
+
+*get bottom container for ALV grid
+    CALL METHOD g_splitter_container_2->get_container
+      EXPORTING
+        row       = 1
+        column    = 1
+      RECEIVING
+        container = g_left_container.
+
+    CALL METHOD g_splitter_container_2->get_container
+      EXPORTING
+        row       = 1
+        column    = 2
+      RECEIVING
+        container = g_right_container.
+
+    CREATE OBJECT grid1
+      EXPORTING
+        i_parent = g_left_container.
+
+    CREATE OBJECT grid2
+      EXPORTING
+        i_parent = g_right_container.
+
+    CALL METHOD grid1->set_table_for_first_display
+      EXPORTING                     " i_buffer_active = 'X'
+        is_layout       = lvc_s_layo
+      CHANGING
+        it_fieldcatalog = gt_fieldcat
+        it_outtab       = t_outtab[].
+
+    CALL METHOD grid2->set_table_for_first_display
+      EXPORTING                     " i_buffer_active = 'X'
+        is_layout       = lvc_s_layo
+      CHANGING
+        it_fieldcatalog = gt_fieldcat
+        it_outtab       = t_outtab[].
+  ELSE.
+    CALL METHOD grid1->refresh_table_display.
+
+    CALL METHOD grid2->refresh_table_display.
+  ENDIF.
+ENDMODULE.                 " PBO_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE ok_code.
+    WHEN 'BACK'. LEAVE TO SCREEN 0.
+    WHEN 'COLOR'. PERFORM set_color.
+  ENDCASE.
+
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*&      Form  LOAD_PIC_FROM_DB
+
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM load_pic_from_db .
+
+  DATA query_table LIKE w3query OCCURS 1 WITH HEADER LINE.
+  DATA html_table LIKE w3html OCCURS 1.
+  DATA return_code LIKE  w3param-ret_code.
+  DATA content_type LIKE  w3param-cont_type.
+
+  DATA content_length LIKE  w3param-cont_len.
+  DATA pic_data LIKE w3mime OCCURS 0.
+  DATA pic_size TYPE i.
+
+  REFRESH query_table.
+
+  query_table-name = '_OBJECT_ID'.
+  query_table-value = 'ENJOYSAP_LOGO'.
+  APPEND query_table.
+
+  CALL FUNCTION 'WWW_GET_MIME_OBJECT'
+    TABLES
+      query_string        = query_table
+      html                = html_table
+      mime                = pic_data
+    CHANGING
+      return_code         = return_code
+      content_type        = content_type
+      content_length      = content_length
+    EXCEPTIONS
+      object_not_found    = 1
+      parameter_not_found = 2
+      OTHERS              = 3.
+
+  IF sy-subrc = 0.
+    pic_size = content_length.
+  ENDIF.
+
+  CALL FUNCTION 'DP_CREATE_URL'
+    EXPORTING
+      type     = 'image'
+      subtype  = cndp_sap_tab_unknown
+      size     = pic_size
+      lifetime = cndp_lifetime_transaction
+    TABLES
+      data     = pic_data
+    CHANGING
+      url      = url
+    EXCEPTIONS
+      OTHERS   = 1.
+ENDFORM.                    " LOAD_PIC_FROM_DB

@@ -1,0 +1,109 @@
+ 
+report zrich_0001 no standard page heading.
+ 
+data: ispfli type table of spfli.
+data: gr_table type ref to cl_salv_table.
+data: gr_functions type ref to cl_salv_functions.
+ 
+ 
+start-of-selection.
+ 
+  select * into table ispfli from spfli.
+ 
+ 
+  try.
+      cl_salv_table=>factory(
+        importing
+          r_salv_table = gr_table
+        changing
+          t_table      = ispfli ).
+    catch cx_salv_msg.
+  endtry.
+ 
+ 
+ 
+  gr_functions = gr_table->get_functions( ).
+  gr_functions->set_all( abap_true ).
+ 
+*... TOP_OF_LIST
+  data: lr_header type ref to cl_salv_form_header_info.
+  create object lr_header
+    exporting
+      text    = 'This is my Header'.
+  gr_table->set_top_of_list( lr_header ).
+ 
+*... END_OF_LIST
+  create object lr_header
+    exporting
+      text    = 'This is my Footer'.
+  gr_table->set_end_of_list( lr_header ).
+ 
+ 
+ 
+  perform create_header_and_footer.
+ 
+ 
+  gr_table->display( ).
+ 
+ 
+ 
+*&---------------------------------------------------------------------*
+*&      Form  create_header_and_footer
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form create_header_and_footer .
+  data: lr_top_element type ref to cl_salv_form_layout_grid,
+        lr_end_element type ref to cl_salv_form_layout_flow,
+        lr_grid type ref to cl_salv_form_layout_grid,
+        lr_header type ref to cl_salv_form_header_info,
+        lr_action type ref to cl_salv_form_action_info,
+        lr_textview1 type ref to cl_salv_form_text,
+        lr_picture type ref to cl_salv_form_picture.
+ 
+  create object lr_top_element
+    exporting
+      columns = 2.
+ 
+  lr_header = lr_top_element->create_header_information(
+    row = 1
+    column = 1
+    text     = 'Flugdaten'                                  "#EC NOTEXT
+    tooltip  = 'Flugdaten' ).                               "#EC NOTEXT
+ 
+  lr_grid = lr_top_element->create_grid( row = 3
+                                         column = 1 ).
+ 
+ 
+  lr_textview1 = lr_grid->create_text(
+      row     = 1
+      column  = 1
+      text    = 'C11'
+      tooltip = 'Tooltip' ).
+ 
+ 
+  create object lr_picture
+    exporting
+      picture_id   = 'ENJOYSAP_LOGO'.
+ 
+  call method lr_grid->set_element
+    exporting
+      row       = 4
+      column    = 1
+      r_element = lr_picture.
+ 
+ 
+  gr_table->set_top_of_list( lr_top_element ).
+ 
+  data: lr_eol type ref to cl_salv_form_header_info.
+  create object lr_eol
+    exporting
+      text    = 'This is my Footer'.
+ 
+  gr_table->set_end_of_list( lr_eol ).
+ 
+endform.                    " create_header_and_footer
+ 

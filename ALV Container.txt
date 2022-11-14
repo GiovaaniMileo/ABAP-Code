@@ -1,0 +1,35 @@
+ data: ob_container        type scrfname value 'GRID',
+        ob_grid             type ref to cl_gui_alv_grid,
+        ob_custom_container type ref to cl_gui_custom_container,
+        lt_exclude          type ui_functions, 
+        ob_event_handler    type ref to event_handler.
+
+  data: ti_saida type table of ti_obst.
+
+  perform manta_gt_fieldcat.
+
+  perform monta_ob_layout.
+
+  if ob_custom_container is initial.
+
+    create object ob_custom_container
+           exporting container_name = ob_container.
+
+    create object ob_grid
+           exporting i_parent = ob_custom_container. 
+
+  endif.
+
+  call method ob_grid->set_table_for_first_display
+    exporting
+      is_layout            = ob_layout
+      it_toolbar_excluding = lt_exclude
+    changing
+      it_fieldcatalog      = gt_fieldcat
+      it_outtab            = ti_saida.
+
+  create object ob_event_handler.
+
+  set handler   ob_event_handler->handle_toolbar for ob_grid.
+
+  call method ob_grid->set_toolbar_interactive.

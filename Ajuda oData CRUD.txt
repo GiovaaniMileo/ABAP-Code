@@ -1,0 +1,1 @@
+https://blogs.sap.com/2017/03/13/how-to-consume-an-odata-service-with-openui5-sapui5/

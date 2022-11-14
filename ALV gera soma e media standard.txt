@@ -1,0 +1,90 @@
+DATA: o_alv          TYPE REF TO cl_salv_table,
+        o_columns      TYPE REF TO cl_salv_columns_table,
+        o_functions    TYPE REF TO cl_salv_functions,
+        o_display      TYPE REF TO cl_salv_display_settings,
+        o_selections   TYPE REF TO cl_salv_selections,
+        o_sorts        TYPE REF TO cl_salv_sorts,
+        o_sort         TYPE REF TO cl_salv_sort,            "#EC NEEDED
+        o_aggregations TYPE REF TO cl_salv_aggregations.
+
+  TRY.
+      CALL METHOD cl_salv_table=>factory
+        IMPORTING
+          r_salv_table = o_alv
+        CHANGING
+          t_table      = gt_dados.
+    CATCH cx_salv_msg .
+      MESSAGE text-004 TYPE 'E'. " Erro ao gerar relatório
+  ENDTRY.
+
+* Giovanni Mileo - Exakta - Inicio
+  o_alv->set_screen_status( report        = 'ZHRR_PY_ENCARGOS'
+                               pfstatus      = '3000' ).
+* Giovanni Mileo - Exakta - Fim
+
+  o_columns = o_alv->get_columns( ).
+* Corrigir títulos das colunas
+  PERFORM f_corrigir_titulos CHANGING o_columns.
+
+* Criar cabeçalho do ALV
+  PERFORM f_alv_header CHANGING o_alv.
+
+  o_functions = o_alv->get_functions( ).
+  o_functions->set_all( abap_true ).
+  o_display = o_alv->get_display_settings( ).
+  o_display->set_striped_pattern( abap_true ).
+
+
+* Ativar modo onde é possivel selecionar as colunas
+  o_selections = o_alv->get_selections( ).
+  o_selections->set_selection_mode(
+        value = if_salv_c_selection_mode=>row_column ).
+
+
+* Ativar ordenação para os campos abaixo
+  o_sorts = o_alv->get_sorts( ).
+  TRY.
+      o_sort = o_sorts->add_sort( columnname = 'BUKRS'
+                                  subtotal   = abap_true ).
+      IF p_empreg IS NOT INITIAL.
+        o_sort = o_sorts->add_sort( columnname = 'PERNR'
+                                    subtotal   = abap_true ).
+      ENDIF.
+    CATCH cx_salv_not_found  cx_salv_existing cx_salv_data_error. "#EC NO_HANDLER
+  ENDTRY.
+
+* Ativar soma / média para os campos abaixo
+  o_aggregations = o_alv->get_aggregations( ).
+  o_aggregations->clear( ).
+  TRY.
+      o_aggregations->add_aggregation( columnname = 'CL_07_09' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_13' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_01' ).
+      o_aggregations->add_aggregation( columnname = 'CL_DEP' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_11' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_08' ).
+      o_aggregations->add_aggregation( columnname = 'RD_TOTAL' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_23' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_24' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_25' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_10' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_14' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_12' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_18' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_02' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_17' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_22' ).
+      o_aggregations->add_aggregation( columnname = 'CL_07_16' ).
+      o_aggregations->add_aggregation( columnname = 'RI_TOTAL' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_IRRF_0561' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_DCTF_0561' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_DIFF_0561' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_IRRF_3562' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_DCTF_3562' ).
+      o_aggregations->add_aggregation( columnname = 'VLR_DIFF_3562' ).
+
+    CATCH cx_salv_not_found cx_salv_data_error cx_salv_existing. "#EC NO_HANDLER
+  ENDTRY.
+
+*** Metodo que exibe o ALV
+  o_alv->display( ).

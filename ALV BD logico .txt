@@ -1,0 +1,486 @@
+*---------------------------------------------------------------------*
+*                         Exakta                                      *
+*---------------------------------------------------------------------*
+* Cliente....:                                                        *
+* Autor......: Giovanni Bruno Mileo                                   *
+* Data.......: 19/08/2015                                             *
+* Descrição..: ALV Orientado Objeto Customizado utilizando BD logico  *
+* Transação..: N/A                                                    *
+* Projeto....: Treinamento ABAP                                       *
+* Cód Espec..: N/A                                                    *
+*---------------------------------------------------------------------*
+* Histórico das modificações                                          *
+*---------------------------------------------------------------------*
+* Autor : Exakta/Giovanni Bruno Mileo           Data: 19/08/2015      *
+* Observações: Desenvolvimento inicial                                *
+
+
+REPORT zestudos_abap_treinamento_11.
+
+*&---------------------------------------------------------------------*
+*&  Tabelas
+*&---------------------------------------------------------------------*
+
+TABLES: zfuncionarios, zstatus, pernr.
+
+TYPE-POOLS : slis.
+
+
+*&---------------------------------------------------------------------*
+*&  Types
+*&---------------------------------------------------------------------*
+
+TYPES:
+
+       BEGIN OF ty_funcionarios,
+        pernr     TYPE zfuncionarios-pernr,     " N° matricula
+        begda     TYPE zfuncionarios-begda,     " Data inicial
+        endda     TYPE zfuncionarios-endda,     " Data final
+        codstatus TYPE zfuncionarios-codstatus, " Cod.Status
+       END OF ty_funcionarios,
+
+
+       BEGIN OF ty_status,
+        codstatus TYPE zstatus-codstatus, " Cod.Status
+        status    TYPE zstatus-status,    " Descrição do Status
+       END OF ty_status,
+
+
+       BEGIN OF ty_saida,
+        pernr     TYPE p0000-pernr,       " N° Matricula
+        ename     TYPE p0001-ename,       " Nome Completo
+        bukrs     TYPE p0001-bukrs,       " Empresa
+        begda     TYPE p0000-begda,       " Data inicial
+        endda     TYPE p0000-endda,       " Data final
+        codstatus TYPE zstatus-codstatus, " Cod.Status
+       END OF ty_saida.
+
+
+*&---------------------------------------------------------------------*
+*&  Banco de dados lógico
+*&---------------------------------------------------------------------*
+
+NODES: peras.
+
+INFOTYPES: 0000,
+           0001.
+
+
+*&---------------------------------------------------------------------*
+*&  Tabelas internas
+*&---------------------------------------------------------------------*
+
+DATA: it_zfuncionarios  TYPE STANDARD TABLE OF ty_funcionarios,
+      it_zstatus        TYPE STANDARD TABLE OF ty_status,
+      it_saida          TYPE STANDARD TABLE OF ty_saida,
+      it_toolbar        TYPE ttb_button,
+      it_zfuncionario_a TYPE STANDARD TABLE OF zfuncionarios.
+
+
+*&---------------------------------------------------------------------*
+*&  Estruturas
+*&---------------------------------------------------------------------*
+
+DATA: st_zfuncionarios  TYPE ty_funcionarios,
+      st_zstatus        TYPE ty_status,
+      st_saida          TYPE ty_saida,
+      st_layout         TYPE lvc_s_layo,
+      st_zfuncionario_a TYPE zfuncionarios.
+
+*&---------------------------------------------------------------------*
+*&  Variaveis
+*&---------------------------------------------------------------------*
+
+DATA: ok_code TYPE sy-ucomm.
+
+
+*&---------------------------------------------------------------------*
+*&  Objetos ALV
+*&---------------------------------------------------------------------*
+
+DATA: gt_fieldcat  TYPE lvc_t_fcat,
+      gs_field     TYPE lvc_s_fcat,
+      gs_toolbar   TYPE stb_button,
+      gt_dropdown1 TYPE lvc_t_drop,
+      gt_dropdown2 TYPE lvc_t_dral,
+
+
+
+* Referenciando o obejto 'O_ALV' com a classe de ALV.
+       o_alv       TYPE REF TO cl_gui_alv_grid,
+
+
+* Referenciando o objeto 'O_CONTAINER' com a classe de Container customizado.
+       o_container TYPE REF TO cl_gui_custom_container.
+
+
+*&---------------------------------------------------------------------*
+*&  LOCAL CLASSES: Definition
+*&---------------------------------------------------------------------*
+
+CLASS lcl_event_receiver DEFINITION.
+
+  PUBLIC SECTION.
+
+    CLASS-METHODS:
+    handle_toolbar
+        FOR EVENT toolbar OF cl_gui_alv_grid
+            IMPORTING e_object e_interactive,
+
+
+    handle_user_command
+        FOR EVENT user_command OF cl_gui_alv_grid
+            IMPORTING e_ucomm.
+
+
+ENDCLASS.                    "lcl_event_receiver DEFINITION
+
+
+*&---------------------------------------------------------------------*
+*&  LOCAL CLASSES: Implementation
+*&---------------------------------------------------------------------*
+
+CLASS lcl_event_receiver IMPLEMENTATION.
+
+  METHOD handle_toolbar.
+
+*    CLEAR gs_toolbar.
+*    gs_toolbar-function = 'MARK'.
+*    gs_toolbar-icon = icon_system_mark.
+*    gs_toolbar-quickinfo = 'Modo marcar; marcar'.
+*    gs_toolbar-butn_type = 0.
+*    gs_toolbar-text = ''.
+*    gs_toolbar-disabled = ' '.
+*    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+
+    CLEAR gs_toolbar.
+    gs_toolbar-function = 'SAVE'.
+    gs_toolbar-icon = icon_system_save.
+    gs_toolbar-quickinfo = 'SAVE'.
+    gs_toolbar-butn_type = 0.
+    gs_toolbar-text = ''.
+    gs_toolbar-disabled = ' '.
+    APPEND gs_toolbar TO e_object->mt_toolbar.
+
+  ENDMETHOD.                    "handle_toolbar
+
+
+  METHOD handle_user_command.
+    ok_code = e_ucomm.
+
+    CASE e_ucomm.
+
+*      WHEN 'MARK'.
+*        PERFORM f_processa_acao.
+
+      WHEN  'SAVE'.
+        PERFORM f_save.
+
+    ENDCASE.
+
+    CLEAR ok_code.
+
+  ENDMETHOD.                           "handle_user_command
+
+ENDCLASS.                    "lcl_event_receiver IMPLEMENTATION
+
+
+*&---------------------------------------------------------------------*
+*&  Remover botões do grid
+*&---------------------------------------------------------------------*
+
+DATA : st_exclude TYPE ui_func,
+       it_exclude TYPE ui_functions. "
+
+
+*&---------------------------------------------------------------------*
+*&  Start-of-Selecion
+*&---------------------------------------------------------------------*
+
+START-OF-SELECTION.
+
+GET peras.
+
+  IF sy-subrc = 0.
+
+    PERFORM f_selecao_dados.
+    PERFORM f_exibe_dados.
+
+  ENDIF.
+
+
+END-OF-SELECTION.
+
+  PERFORM f_fieldcat.
+
+  CALL SCREEN 0100.
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_SELECAO_DADOS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+FORM f_selecao_dados .
+
+  IF sy-subrc = 0.
+
+    SELECT pernr begda endda codstatus
+      FROM zfuncionarios
+      INTO TABLE it_zfuncionarios
+      FOR ALL ENTRIES IN p0000
+      WHERE pernr = p0000-pernr.
+
+  ENDIF.
+
+
+ENDFORM.                   " F_SELECAO_DADOS
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_EXIBE_DADOS
+*&---------------------------------------------------------------------*
+
+FORM f_exibe_dados .
+
+  rp_provide_from_last p0000 ' ' pn-begda pn-endda.
+
+  st_saida-pernr = p0000-pernr.
+  st_saida-begda = p0000-begda.
+  st_saida-endda = p0000-endda.
+
+
+  rp_provide_from_last p0001 ' ' pn-begda pn-endda.
+
+  st_saida-ename = p0001-ename.
+  st_saida-bukrs = p0001-bukrs.
+
+
+  READ TABLE it_zfuncionarios
+  INTO st_zfuncionarios
+  WITH KEY pernr = p0000-pernr.
+
+
+  IF st_zfuncionarios-codstatus IS NOT INITIAL.
+
+    st_saida-codstatus = st_zfuncionarios-codstatus.
+
+  ENDIF.
+
+  APPEND st_saida TO it_saida.
+
+  CLEAR: st_saida, p0000, st_zfuncionarios.
+
+ENDFORM.                    " F_EXIBE_DADOS
+
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_9001  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+
+  SET PF-STATUS 'DEFAULT'.
+  SET TITLEBAR 'TITULO'.
+
+  PERFORM : f_alv.
+
+ENDMODULE.                 " STATUS_9001  OUTPUT
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FIELDCAT
+*&---------------------------------------------------------------------*
+
+FORM f_fieldcat .
+
+  PERFORM f_monta_fieldcat USING:
+
+*     'CHECK'       'IT_SAIDA' ''         'X'  'X' ' '        ' ',
+     'PERNR'       'IT_SAIDA' text-t00   ''   ' ' ' '        ' ',
+     'ENAME'       'IT_SAIDA' text-t01   ''   ' ' ' '        ' ',
+     'BUKRS'       'IT_SAIDA' text-t02   ''   ' ' ' '        ' ',
+     'CODSTATUS'   'IT_SAIDA' text-t03   ''   'X' 'ZSTATUS'  'CODSTATUS'.
+
+ENDFORM.                    " F_FIELDCAT
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MONTA_FIELDCAT
+*&---------------------------------------------------------------------*
+
+FORM f_monta_fieldcat  USING p_campo
+                             p_tabela
+                             p_texto
+                             p_chec
+                             p_edit
+                             p_ref_table
+                             p_ref_field.
+
+
+  gs_field-fieldname = p_campo.
+  gs_field-tabname   = p_tabela.
+  gs_field-coltext   = p_texto.
+  gs_field-checkbox  = p_chec.
+  gs_field-edit      = p_edit.
+  gs_field-ref_table = p_ref_table.
+  gs_field-ref_field = p_ref_field.
+
+  APPEND gs_field TO gt_fieldcat.
+
+
+
+ENDFORM.                    " F_MONTA_FIELDCAT
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_ALV
+*&---------------------------------------------------------------------*
+
+FORM f_alv .
+
+  IF o_alv IS BOUND.
+
+* Metodo da classe de alv atribuida ao objeto o_alv para limpar o objeto.
+
+    o_alv->free( ).
+  ENDIF.
+
+
+* Se o Objeto não foi instaciando
+
+  IF o_container IS NOT BOUND.
+
+
+*  Faz a criação do objecto do container passando o nome do Custom control
+* para o parametro de exportação.
+
+    CREATE OBJECT o_container
+      EXPORTING
+        container_name = 'CC_ALV'.
+
+  ENDIF.
+
+
+*  Faz a criação do objeto do ALV passando o nome do Container que receberá
+* o ALV
+
+  CREATE OBJECT o_alv
+    EXPORTING
+      i_parent = o_container.
+
+
+*  PERFORM alv_toolbar CHANGING it_toolbar.
+
+
+*  Alimenta a estrutura de Layout do alv.
+
+  PERFORM f_layout_alv.
+
+
+  SET HANDLER lcl_event_receiver=>handle_user_command
+              lcl_event_receiver=>handle_toolbar FOR ALL INSTANCES.
+
+
+  CALL METHOD o_alv->set_table_for_first_display
+    EXPORTING
+      is_layout            = st_layout
+      it_toolbar_excluding = it_exclude
+    CHANGING
+      it_outtab            = it_saida
+      it_fieldcatalog      = gt_fieldcat.
+
+
+* Chama o botão no grid ALV
+  CALL METHOD o_alv->set_toolbar_interactive.
+
+
+ENDFORM.                    " F_ALV
+
+
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+  CASE sy-ucomm.
+    WHEN 'EXEC'.
+      PERFORM : f_alv.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+    WHEN 'EXIT'.
+      LEAVE TO SCREEN 0.
+    WHEN 'CANCEL'.
+      LEAVE PROGRAM.
+    WHEN OTHERS.
+  ENDCASE.
+
+ENDMODULE.                 " USER_COMMAND_0100  INPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  F_LAYOUT_ALV
+*&---------------------------------------------------------------------*
+
+FORM f_layout_alv .
+
+  st_layout-cwidth_opt = 'X'.
+  st_layout-zebra      = 'X'.
+*  st_layout-box_fname  = 'SEL'.
+
+
+  st_exclude = cl_gui_alv_grid=>mc_fc_graph.
+  APPEND st_exclude TO it_exclude.
+
+
+ENDFORM.                    " F_LAYOUT_ALV
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_SAVE
+*&---------------------------------------------------------------------*
+
+FORM f_save .
+
+  LOOP AT  it_saida INTO st_saida.
+
+    IF st_saida-codstatus IS NOT INITIAL.
+
+      st_zfuncionario_a-pernr     = st_saida-pernr.
+      st_zfuncionario_a-begda     = st_saida-begda.
+      st_zfuncionario_a-endda     = st_saida-endda.
+      st_zfuncionario_a-codstatus = st_saida-codstatus.
+
+      APPEND st_zfuncionario_a TO it_zfuncionario_a.
+
+
+      IF sy-subrc = 0.
+
+        MODIFY zfuncionarios FROM TABLE it_zfuncionario_a.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+
+  IF sy-subrc = 0 .
+
+    MESSAGE 'Registro inserido com sucesso!' TYPE 'I'.
+
+  ELSEIF sy-subrc = 4.
+
+    MESSAGE 'Registro já existe!' TYPE 'I'.
+
+  ENDIF.
+
+
+  LEAVE TO SCREEN 0.
+
+ENDFORM.                    " F_SAVE

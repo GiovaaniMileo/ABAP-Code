@@ -1,0 +1,2 @@
+Essa trasanção altera todo lugar que usa essa descrição do elemento 
+SOTR_EDIT

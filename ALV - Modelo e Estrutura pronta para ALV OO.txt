@@ -1,0 +1,234 @@
+*&---------------------------------------------------------------------*
+*& Report  ZBTMPS
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  zbtmps.
+
+DATA:  l_alv           TYPE REF TO cl_salv_table,
+       l_columns       TYPE REF TO cl_salv_columns_table,
+       l_column_table  TYPE REF TO cl_salv_column_table,
+       l_column        TYPE REF TO cl_salv_column,
+       l_functions     TYPE REF TO cl_salv_functions,
+       l_display       TYPE REF TO cl_salv_display_settings,
+       l_selections    TYPE REF TO cl_salv_selections,
+       l_sorts         TYPE REF TO cl_salv_sorts,
+       l_sort          TYPE REF TO cl_salv_sort,            "#EC NEEDED
+       l_aggregations  TYPE REF TO cl_salv_aggregations,
+       l_layout        TYPE REF TO cl_salv_layout,
+
+       l_header        TYPE REF TO cl_salv_form_layout_grid,
+       l_h_label       TYPE REF TO cl_salv_form_label.
+
+
+TYPES: BEGIN OF ty_saida,
+      ano_mes(06)       TYPE c,         "Ano e mês do pedido
+      END OF ty_saida.
+
+DATA: t_saida      TYPE STANDARD TABLE OF ty_saida,
+      wa_saida     type ty_saida.
+
+*&---------------------------------------------------------------------*
+*& Inicialização
+*&---------------------------------------------------------------------*
+initialization.
+
+
+*&---------------------------------------------------------------------*
+*& Inicio
+*&---------------------------------------------------------------------*
+start-of-selection.
+
+  perform zf_seleciona_dados.
+
+  perform zf_gera_alv.
+
+end-of-selection.
+*&---------------------------------------------------------------------*
+*&      Form  ZF_GERA_ALV
+*&---------------------------------------------------------------------*
+FORM zf_gera_alv .
+
+  PERFORM zf_factory.
+  PERFORM zf_define_chaves.
+  PERFORM zf_header.
+*
+  l_functions = l_alv->get_functions( ).
+  l_functions->set_all( abap_true ).
+  l_display   = l_alv->get_display_settings( ).
+  l_display->set_striped_pattern( abap_true ).
+
+* Ativar layout
+  l_layout = l_alv->get_layout( ).
+  l_layout->set_default( abap_true ).
+  l_layout->set_save_restriction( if_salv_c_layout=>restrict_none ).
+
+  PERFORM zf_ativa_seleciona_coluna.
+  PERFORM zf_sort.
+  PERFORM zf_altera_label_campos.
+  PERFORM zf_ativar_soma.
+
+  l_alv->display( ).
+
+ENDFORM.                    " ZF_GERA_ALV
+*&---------------------------------------------------------------------*
+*&      Form  ZF_FACTORY
+*&---------------------------------------------------------------------*
+
+FORM zf_factory .
+
+  TRY.
+      CALL METHOD cl_salv_table=>factory
+        IMPORTING
+          r_salv_table = l_alv
+        CHANGING
+          t_table      = t_saida.
+
+    CATCH cx_salv_msg .
+      MESSAGE 'Erro ao gerar relatório'(003) TYPE 'S' DISPLAY LIKE 'E'.
+  ENDTRY.
+
+ENDFORM.                    " ZF_FACTORY
+*&---------------------------------------------------------------------*
+*&      Form  ZF_DEFINE_CHAVES
+*&---------------------------------------------------------------------*
+FORM zf_define_chaves .
+
+
+* Colunas
+  l_columns = l_alv->get_columns( ).
+  TRY.
+      l_columns->set_optimize( abap_true ).
+
+**     Empresa
+*      l_column_table ?= l_columns->get_column( columnname = 'PERNR' ).
+*      l_column_table->set_key( abap_true ).
+*      l_column_table ?= l_columns->get_column( columnname = 'ENAME' ).
+*      l_column_table->set_key( abap_true ).
+
+    CATCH cx_salv_not_found.                            "#EC NO_HANDLER
+  ENDTRY.
+
+ENDFORM.                    " ZF_DEFINE_CHAVES
+*&---------------------------------------------------------------------*
+*&      Form  ZF_HEADER
+*&---------------------------------------------------------------------*
+FORM zf_header .
+
+*   Criar cabeçalho do ALV
+  CREATE OBJECT l_header.
+*   Titulo
+  l_h_label = l_header->create_label( row = 1 column = 1 ).
+  l_h_label->set_text( sy-title ).
+  l_alv->set_top_of_list( l_header ).
+  l_alv->set_top_of_list_print( l_header ).
+*
+
+*   Titulo
+    l_h_label = l_header->create_label( row = 2 column = 1 ).
+    l_h_label->set_text( 'Pasta SM35:' ).
+    l_alv->set_top_of_list( l_header ).
+    l_alv->set_top_of_list_print( l_header ).
+
+*   Titulo
+    l_h_label = l_header->create_label( row = 2 column = 3 ).
+    l_h_label->set_text( 'Um texto qualquer' ).
+    l_alv->set_top_of_list( l_header ).
+    l_alv->set_top_of_list_print( l_header ).
+
+
+ENDFORM.                    " ZF_HEADER
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ATIVA_SELECIONA_COLUNA
+*&---------------------------------------------------------------------*
+FORM zf_ativa_seleciona_coluna .
+
+** Ativar modo onde é possivel selecionar as colunas
+*  l_selections = l_alv->get_selections( ).
+*  l_selections->set_selection_mode( value = if_salv_c_selection_mode=>row_column ).
+*
+
+ENDFORM.                    " ZF_ATIVA_SELECIONA_COLUNA
+*&---------------------------------------------------------------------*
+*&      Form  ZF_SORT
+*&---------------------------------------------------------------------*
+FORM zf_sort .
+
+* Ativar ordenação para os campos abaixo
+*  l_sorts = l_alv->get_sorts( ).
+*  TRY.
+*      l_sort = l_sorts->add_sort( columnname = 'PERNR'
+*                                  subtotal   = abap_true ).
+*    CATCH cx_salv_not_found  cx_salv_existing cx_salv_data_error. "#EC NO_HANDLER
+*  ENDTRY.
+
+ENDFORM.                    " ZF_SORT
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ALTERA_LABEL_CAMPOS
+*&---------------------------------------------------------------------*
+FORM zf_altera_label_campos .
+
+  PERFORM zf_change_label USING 'ANO_MES'         'Ano e Mês do Pedido'.
+*  PERFORM zf_change_label USING 'WERKS'           'Área de Rh'.
+
+ENDFORM.                    " ZF_ALTERA_LABEL_CAMPOS
+*&---------------------------------------------------------------------*
+*&      Form  ZF_CHANGE_LABEL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0206   text
+*      -->P_0207   text
+*----------------------------------------------------------------------*
+FORM zf_change_label   USING    p_campo
+                               p_label.
+
+  DATA: vl_tam TYPE i,
+        vl_outlen  TYPE lvc_outlen.
+
+  l_column_table ?= l_columns->get_column( columnname = p_campo ).
+
+  vl_tam = STRLEN( p_label ).
+  WRITE vl_tam  TO vl_outlen. UNPACK vl_outlen TO vl_outlen.
+
+  IF vl_tam <= 10.
+    l_column_table->set_short_text( p_label ).
+    l_column_table->set_medium_text( p_label ).
+    l_column_table->set_long_text( p_label ).
+  ELSEIF vl_tam <= 15.
+    l_column_table->set_medium_text( p_label ).
+    l_column_table->set_long_text( p_label ).
+  ELSE.
+    l_column_table->set_long_text( p_label ).
+  ENDIF.
+
+  l_column_table->set_output_length( vl_outlen ).
+  l_column_table->set_optimized( abap_true ).
+
+
+ENDFORM.                    " ZF_CHANGE_LABEL
+*&---------------------------------------------------------------------*
+*&      Form  ZF_ATIVAR_SOMA
+*&---------------------------------------------------------------------*
+FORM zf_ativar_soma .
+
+** Ativar soma / média para os campos abaixo
+*  l_aggregations = l_alv->get_aggregations( ).
+*  l_aggregations->clear( ).
+*  TRY.
+*      l_aggregations->add_aggregation( columnname = 'BETRG' ).
+*    CATCH cx_salv_not_found cx_salv_data_error cx_salv_existing. "#EC NO_HANDLER
+*  ENDTRY.
+
+ENDFORM.                    " ZF_ATIVAR_SOMA
+*&---------------------------------------------------------------------*
+*&      Form  ZF_SELECIONA_DADOS
+*&---------------------------------------------------------------------*
+form ZF_SELECIONA_DADOS .
+
+
+
+endform.                    " ZF_SELECIONA_DADOS
